@@ -13,7 +13,18 @@ export function attachHub(wss: WebSocketServer, sources: SourceManager): void {
 
     const off = sources.onEvent((event) => forward(ws, event));
     ws.on("close", off);
-    ws.on("message", (raw) => handleClientMessage(raw.toString()));
+    ws.on("message", (raw) => {
+      let msg: { type?: string } | undefined;
+      try {
+        msg = JSON.parse(raw.toString());
+      } catch {
+        return; // ignore non-JSON frames
+      }
+      if (msg?.type === "list") {
+        send(ws, { type: "devices", devices: sources.devices() });
+      }
+      // Phase 8: remote-control commands (tap/swipe/keys) will be handled here.
+    });
   });
 }
 
@@ -32,10 +43,6 @@ function forward(ws: WebSocket, event: SourceEvent): void {
       // Phase 1: binary video framing goes here.
       break;
   }
-}
-
-function handleClientMessage(_raw: string): void {
-  // Phase 8: remote-control commands (tap/swipe/keys) arrive here.
 }
 
 function send(ws: WebSocket, msg: unknown): void {

@@ -5,6 +5,24 @@ Newest first. One entry per work session: what was done, decisions made, and wha
 
 ---
 
+## 2026-07-14 — Dashboard UI + mock source (demo-ready)
+
+**Done**
+- Added `MockSource` (helper): 6 demo devices matching the mockup (SM-G991B…SM-M336B, mixed Tier 1/2) with live per-second stats jitter (fps/battery/lastUpdate). On by default; disable with `MOCK=0`.
+- Extended the browser protocol: client `{type:"list"}` (Refresh) → helper re-sends the device list.
+- Built the full dashboard UI matching the reference mockup: header (logo, live device count, helper-connection dot, Refresh + placeholder Screenshot/Settings/Disconnect), responsive phone-card grid (Live badge, synthetic screen with live clock + fps badge, Model/Android/Battery footer), bottom status bar (all-online, N/N devices, real-time monitoring, avg FPS). Dark theme in `styles.css`.
+- Added `.gitattributes` (LF normalization) to stop CRLF churn.
+
+**Verified**
+- helper + web typecheck and build clean.
+- Ran helper with mock: WS delivered 6 devices (3 control, 3 view) and ~6 stats/sec; sample patch carried fps/battery/lastUpdate. Data pipeline confirmed end-to-end.
+- Could not visually screenshot (no headless browser installed) — render verified via build + live data flow; owner opens the dashboard in a browser.
+
+**Next**
+- Phase 1: real Wi-Fi ADB (scrcpy) source — wire `@yume-chan` ADB + scrcpy, pair one unlocked phone, relay H.264 → WebCodecs canvas in `PhoneScreen`.
+
+---
+
 ## 2026-07-14 — Phase 0: project bootstrap
 
 **Done**

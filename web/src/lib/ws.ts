@@ -1,19 +1,11 @@
 // Dashboard-side client for the helper WebSocket, with auto-reconnect.
-
-export interface WireDevice {
-  id: string;
-  name: string;
-  status: string;
-  tier?: string;
-  connection?: string;
-  battery?: number;
-}
+import type { Device } from "../types";
 
 export type HubMessage =
-  | { type: "devices"; devices: WireDevice[] }
-  | { type: "device"; device: WireDevice }
+  | { type: "devices"; devices: Device[] }
+  | { type: "device"; device: Device }
   | { type: "removed"; deviceId: string }
-  | { type: "stats"; deviceId: string; patch: Partial<WireDevice> };
+  | { type: "stats"; deviceId: string; patch: Partial<Device> };
 
 interface HubHandlers {
   onOpen?: () => void;
@@ -21,7 +13,12 @@ interface HubHandlers {
   onMessage?: (msg: HubMessage) => void;
 }
 
-export function connectHub(handlers: HubHandlers) {
+export interface Hub {
+  send(msg: unknown): void;
+  close(): void;
+}
+
+export function connectHub(handlers: HubHandlers): Hub {
   const url = `${location.protocol === "https:" ? "wss" : "ws"}://${location.host}/ws`;
   let socket = new WebSocket(url);
   let closed = false;
@@ -49,8 +46,8 @@ export function connectHub(handlers: HubHandlers) {
   wire(socket);
 
   return {
-    get socket() {
-      return socket;
+    send(msg: unknown) {
+      if (socket.readyState === WebSocket.OPEN) socket.send(JSON.stringify(msg));
     },
     close() {
       closed = true;

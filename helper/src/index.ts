@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 import express from "express";
 import { WebSocketServer } from "ws";
 import { SourceManager } from "./sources/source-manager.js";
+import { MockSource } from "./sources/mock-source.js";
 import { attachHub } from "./ws-hub.js";
 
 const PORT = Number(process.env.PORT ?? 8787);
@@ -22,6 +23,9 @@ const server = createServer(app);
 const wss = new WebSocketServer({ server, path: "/ws" });
 
 const sources = new SourceManager();
+if (process.env.MOCK !== "0") {
+  sources.register(new MockSource()); // demo devices until real sources are wired
+}
 // Phase 1: sources.register(new WifiAdbSource());
 // Phase 2: sources.register(new WifiAppSource(PAIRING_TOKEN));
 attachHub(wss, sources);
