@@ -1,25 +1,50 @@
 # Phone Monitor — Android capture app (Tier 2)
 
-**Status: placeholder — built in Phase 2.**
-
-This is the view-only capture app for phones whose Developer Options are carrier-locked
+The view-only capture app for phones whose Developer Options are carrier-locked
 (so ADB/scrcpy can't be used). It streams the screen to the desktop helper over Wi-Fi.
 
-## Planned design
+## Design
 
-- **Capture:** `MediaProjection` → `MediaCodec` H.264 encoder (hardware).
-- **Transport:** WebSocket client → helper's `wifi-app` source. Same H.264 → WebCodecs
-  decode path the dashboard already uses for Tier-1.
-- **Pairing:** scan a QR the dashboard shows (helper address + one-time token).
-- **Reliability:** foreground service, keep-alive, auto-reconnect.
-- **Stats:** reports battery / model / Android version via normal Android APIs.
+- **Capture:** `MediaProjection` → `MediaCodec` H.264 encoder (hardware, `Surface` input).
+- **Transport:** OkHttp WebSocket → helper's `wifi-app` source. Same H.264 → WebCodecs
+  decode path the dashboard uses for Tier-1.
+- **Protocol:** a JSON `hello` text frame (model / Android version / battery / size),
+  then binary frames = `[1 byte type: 0=config, 1=key, 2=delta] + H.264`.
+- **Reliability:** foreground service (`mediaProjection` type), auto-reconnecting socket.
+- **View-only:** a normal app cannot inject input into other apps (Android security
+  boundary), so Tier-2 phones are viewable but not remotely controllable — a platform
+  limit, not a project decision. See [../CLAUDE.md](../CLAUDE.md) §2.
 
-## Why view-only
+## Project layout
 
-A normal Android app cannot inject input into other apps (Android security boundary),
-so Tier-2 phones can be viewed but not remotely controlled. This is a platform limit,
-not a project decision. See [../CLAUDE.md](../CLAUDE.md) §2.
+```
+app/                     Gradle root (rootProject "PhoneMonitorCapture")
+├─ settings.gradle.kts
+├─ build.gradle.kts
+├─ gradle.properties
+└─ capture/              the :capture application module
+   ├─ build.gradle.kts   AGP 8.5.2 · Kotlin 1.9.24 · minSdk 26 · target 34
+   └─ src/main/java/com/phonemonitor/capture/
+      ├─ MainActivity.kt   helper URL + token, MediaProjection consent, start/stop
+      ├─ CaptureService.kt foreground service: projection → encoder → drain loop
+      └─ Streamer.kt        WebSocket streaming
+```
 
-## Build (later)
+## Building the APK (no Android Studio needed)
 
-Requires JDK 17 + Android Studio / Android SDK. Toolchain and Gradle project land in Phase 2.
+The dev laptop can't build Android, so the APK is built in **GitHub Actions**
+(`.github/workflows/android.yml`) on every push that touches `app/**`.
+
+To get it:
+1. Open the repo's **Actions** tab → the latest **Android APK** run.
+2. Download the **`phone-monitor-capture-debug`** artifact (a zip containing the APK).
+3. Unzip and install the APK on the phone (`Install unknown apps` must be allowed).
+
+## Using it (once installed)
+
+1. Open **Phone Monitor Capture**.
+2. Enter the helper address, e.g. `ws://<desktop-ip>:8787/app`, and the pairing token.
+3. Tap **Start capturing** → grant the screen-capture prompt. The screen appears on
+   the desktop dashboard tile.
+
+> QR pairing (scan the helper's code instead of typing the address) is a later enhancement.

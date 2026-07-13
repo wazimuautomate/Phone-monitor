@@ -16,8 +16,7 @@ helper/screenshots/
 
 # android
 app/.gradle/
-app/build/
-app/app/build/
+app/**/build/
 app/local.properties
 *.keystore
 *.jks

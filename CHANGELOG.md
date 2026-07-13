@@ -16,6 +16,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this pr
 - Full dashboard UI matching the reference mockup: header with live device count + actions, responsive phone-card grid (Live badge, synthetic screen, Model/Android/Battery footer), and a bottom status bar. Dark theme.
 - `{type:"list"}` refresh message in the browser ↔ helper protocol.
 - `.gitattributes` for LF line-ending normalization.
+- Android capture app (Tier 2): MediaProjection → H.264 (MediaCodec) → WebSocket streaming, with a minimal helper-address/token UI and a foreground service.
+- `android.yml` GitHub Actions workflow that builds a downloadable debug APK artifact (the dev laptop has no Android Studio).
 
 ### Notes
 - Branch strategy: `feature` (all work) + `main` (tested-working only). APK is built in CI (the dev laptop has no Android Studio).

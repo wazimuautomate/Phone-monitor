@@ -5,6 +5,22 @@ Newest first. One entry per work session: what was done, decisions made, and wha
 
 ---
 
+## 2026-07-14 — Phase 2: Android capture app (Tier 2) + APK CI
+
+**Done**
+- Scaffolded the Android capture app under `app/` (Gradle root) → module `:capture` (`app/capture`). Kotlin, classic Views (no Compose), minSdk 26 / target 34, AGP 8.5.2 / Gradle 8.9 / Kotlin 1.9.24.
+- Implemented `MainActivity` (helper URL + token, MediaProjection consent, start/stop), `CaptureService` (foreground service type mediaProjection → MediaCodec H.264 + VirtualDisplay, drains encoded frames), `Streamer` (OkHttp WebSocket → JSON hello + binary `[type-byte + H.264]` frames).
+- Added `.github/workflows/android.yml`: builds the debug APK on push and uploads artifact `phone-monitor-capture-debug`.
+- No launcher-icon file (uses a built-in system icon) to avoid committing binary assets.
+
+**Verification** — cannot build Android locally (no JDK/Studio). CI is the test harness; iterating `android.yml` until the APK builds green. Stays on `feature` until then.
+
+**Next**
+- Watch CI; fix build errors to green.
+- Phase 2d: helper `WifiAppSource` (WS ingest at `/app`) + browser WebCodecs decode → app→helper→dashboard end-to-end.
+
+---
+
 ## 2026-07-14 — Dashboard UI + mock source (demo-ready)
 
 **Done**
