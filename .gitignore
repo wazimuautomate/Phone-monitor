@@ -1,0 +1,29 @@
+# dependencies / build output
+node_modules/
+dist/
+build/
+*.tsbuildinfo
+
+# logs / env
+*.log
+.env
+.env.local
+
+# helper runtime data (device db, screenshots, recordings)
+helper/data/
+helper/recordings/
+helper/screenshots/
+
+# android
+app/.gradle/
+app/build/
+app/app/build/
+app/local.properties
+*.keystore
+*.jks
+
+# os / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

@@ -1,0 +1,24 @@
+{
+  "name": "phone-monitor",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Real-time multi-phone monitoring dashboard: a browser UI + local Node helper that mirror many Android phones on one desktop screen.",
+  "type": "module",
+  "workspaces": [
+    "helper",
+    "web"
+  ],
+  "scripts": {
+    "dev": "concurrently -k -n helper,web -c blue,green \"npm:dev:helper\" \"npm:dev:web\"",
+    "dev:helper": "npm run dev -w helper",
+    "dev:web": "npm run dev -w web",
+    "build": "npm run build -w web && npm run build -w helper",
+    "start": "npm run start -w helper"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.0"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
