@@ -13,7 +13,7 @@ Newest first. One entry per work session: what was done, decisions made, and wha
 - Added `.github/workflows/android.yml`: builds the debug APK on push and uploads artifact `phone-monitor-capture-debug`.
 - No launcher-icon file (uses a built-in system icon) to avoid committing binary assets.
 
-**Verification** — cannot build Android locally (no JDK/Studio). CI is the test harness; iterating `android.yml` until the APK builds green. Stays on `feature` until then.
+**Verification** — cannot build Android locally (no JDK/Studio); CI is the test harness. ✅ Both workflows green on `84e7c78`: Android APK built in 3m29s and uploaded as artifact `phone-monitor-capture-debug`; node CI (helper/web) success. App stays on `feature` until runtime-tested on a real phone (needs the Phase-2d loop first).
 
 **Next**
 - Watch CI; fix build errors to green.
