@@ -30,10 +30,15 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this pr
 - Capture-app redesign: **adaptive launcher icon** matching the site, Material3 dark UI in the palette, labeled inputs with placeholder hints, and a color-coded **connection status** (Idle/Connecting/Streaming/Reconnecting).
 - Capture app now **auto-reconnects**, holds a **wake lock**, prompts for **battery-optimization exemption**, and survives task-swipe (`stopWithTask=false`) so it isn't killed while streaming in the background.
 - **Real-time alerts** (toasts): **new-device**, **disconnect**, **low-battery** (≤20%), and **screen-lock** — color-coded and auto-dismissing. The helper distinguishes an intentional Remove from a real disconnect, and the capture app reports screen lock/unlock.
+- Capture app **Recent connections**: remembers helper addresses — tap one to reconnect, long-press to remove — so you don't retype the address.
 
 ### Changed
 - Removed the Screenshot and Disconnect-All header buttons; removed the Model/Android/Battery card footer to give screens more space.
 - Settings drawer is now a single **horizontal bar**, and the **Columns** control is **Auto + a free number field** (the 1–6 preset buttons were removed).
+- Capture app renamed to **Phone Monitor**; the release APK is now **`phone-monitor.apk`**.
+
+### Fixed
+- Capture-app notification no longer stays on "Starting…" — it shows **"Streaming this screen"** as soon as frames flow.
 
 ### Notes
 - Branch strategy: `feature` (all work) + `main` (tested-working only). APK is built in CI (the dev laptop has no Android Studio).

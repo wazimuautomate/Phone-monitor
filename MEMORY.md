@@ -5,6 +5,20 @@ Newest first. One entry per work session: what was done, decisions made, and wha
 
 ---
 
+## 2026-07-14 — v1 last touch: notification, recent connections, naming, hosting
+
+**Done (feature):**
+- Notification now flips to **"Streaming this screen"** the instant the first frame is actually sent (definitive), in addition to on WS-open — fixes the stuck "Starting…". `Streamer.sendFrame` returns Boolean; `CaptureService` triggers `onFirstFrame()`.
+- Capture app **Recent connections**: saved helper address+token history (max 5) in prefs; **tap to fill + connect immediately**, long-press to remove. No more retyping.
+- App label renamed to **"Phone Monitor"**; CI publishes the APK as **`phone-monitor.apk`** (deletes the old `phone-monitor-capture.apk` asset).
+- Docs: hosting guidance added.
+
+**Verification** — mobile via CI; web/helper unchanged.
+
+**Hosting decision (recorded):** the dashboard is served by the **local helper** (`npm run build && npm start` → `http://localhost:8787`, LAN-reachable). **Vercel is NOT suitable** for the core — it would host only the static UI, which is useless without the helper on the LAN; a hosted UI needs the helper exposed via tunnel + auth (the future internet-remote feature).
+
+---
+
 ## 2026-07-14 — v1 finish: Alerts + settings layout fix
 
 **Done (feature):**

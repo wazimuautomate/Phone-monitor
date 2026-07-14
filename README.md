@@ -59,6 +59,26 @@ Then open the dashboard URL the helper prints (default `http://localhost:5173` i
 
 **Keep phones reachable while unattended:** leave them on chargers and enable "stay awake while charging" so they don't sleep and drop off Wi-Fi.
 
+## Hosting / production
+
+The dashboard is **served by the helper on your desktop** — it is *not* a standalone website.
+The helper must run on a machine on the **same Wi-Fi/LAN as the phones** (to reach `ws://…/app`,
+and later ADB). So "deploying" is just:
+
+```bash
+npm run build     # builds the dashboard into web/dist
+npm start         # helper serves it at http://localhost:8787
+```
+
+Open `http://localhost:8787` on the desktop (or `http://<desktop-lan-ip>:8787` from another
+device on the same network).
+
+**Why not Vercel/Netlify?** They host static/serverless sites. They could host the dashboard
+*files*, but the page is useless without the local helper it talks to (which must sit on your LAN
+to see the phones). Hosting the UI there would still require exposing the helper to the internet
+via a tunnel + auth — that's the planned "remote access over the internet" feature, not needed for
+local use.
+
 ## Status
 
 Early development. See [CHANGELOG.md](CHANGELOG.md) for what's built and [MEMORY.md](MEMORY.md) for the running work log. Build phases and conventions live in [CLAUDE.md](CLAUDE.md).

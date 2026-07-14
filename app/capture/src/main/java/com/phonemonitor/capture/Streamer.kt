@@ -74,13 +74,13 @@ class Streamer(
         }
     }
 
-    fun sendFrame(type: Int, data: ByteArray) {
-        val socket = ws ?: return
-        if (!open) return
+    fun sendFrame(type: Int, data: ByteArray): Boolean {
+        val socket = ws ?: return false
+        if (!open) return false
         val out = ByteArray(data.size + 1)
         out[0] = type.toByte()
         System.arraycopy(data, 0, out, 1, data.size)
-        socket.send(ByteString.of(*out))
+        return socket.send(ByteString.of(*out))
     }
 
     /** Send a JSON status text frame (e.g. screen lock changes). */

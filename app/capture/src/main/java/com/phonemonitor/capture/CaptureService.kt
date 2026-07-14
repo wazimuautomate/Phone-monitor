@@ -56,6 +56,7 @@ class CaptureService : Service() {
     private var wakeLock: PowerManager.WakeLock? = null
 
     @Volatile private var running = false
+    @Volatile private var firstFrameSent = false
 
     private var receiverRegistered = false
     private val screenReceiver = object : BroadcastReceiver() {
@@ -138,6 +139,12 @@ class CaptureService : Service() {
         }
     }
 
+    /** Definitive "we're live" signal: the first encoded frame reached the socket. */
+    private fun onFirstFrame() {
+        CaptureState.set(CaptureState.STREAMING, "Streaming to helper")
+        updateNotification("Streaming this screen")
+    }
+
     private fun startEncoder(w: Int, h: Int, dpi: Int) {
         val format = MediaFormat.createVideoFormat(MediaFormat.MIMETYPE_VIDEO_AVC, w, h).apply {
             setInteger(MediaFormat.KEY_COLOR_FORMAT, MediaCodecInfo.CodecCapabilities.COLOR_FormatSurface)
@@ -158,6 +165,7 @@ class CaptureService : Service() {
             inputSurface, null, null,
         )
 
+        firstFrameSent = false
         running = true
         thread(name = "pm-encoder") { drainLoop() }
     }
@@ -180,7 +188,11 @@ class CaptureService : Service() {
                             info.flags and MediaCodec.BUFFER_FLAG_KEY_FRAME != 0 -> 1
                             else -> 2
                         }
-                        streamer?.sendFrame(type, bytes)
+                        val sent = streamer?.sendFrame(type, bytes) == true
+                        if (sent && !firstFrameSent) {
+                            firstFrameSent = true
+                            onFirstFrame()
+                        }
                     }
                     codec.releaseOutputBuffer(index, false)
                 }
@@ -239,6 +251,7 @@ class CaptureService : Service() {
 
     private fun stopCapture() {
         running = false
+        firstFrameSent = false
         runCatching { virtualDisplay?.release() }
         runCatching { encoder?.stop() }
         runCatching { encoder?.release() }

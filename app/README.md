@@ -36,9 +36,12 @@ The dev laptop can't build Android, so the APK is built in **GitHub Actions**
 (`.github/workflows/android.yml`) on every push that touches `app/**`.
 
 To get it:
-1. Open the repo's **Actions** tab → the latest **Android APK** run.
-2. Download the **`phone-monitor-capture-debug`** artifact (a zip containing the APK).
-3. Unzip and install the APK on the phone (`Install unknown apps` must be allowed).
+1. Open the repo's **Releases** page → **capture-latest** → download **`phone-monitor.apk`**.
+   (Or the **Actions** run's **`phone-monitor`** artifact.)
+2. Install it on the phone (`Install unknown apps` must be allowed).
+
+The app remembers **recent helper addresses** — after the first connect, just tap the address in
+the **Recent** list to reconnect (long-press to remove one).
 
 ## Using it (once installed)
 
