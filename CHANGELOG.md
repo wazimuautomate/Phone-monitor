@@ -5,7 +5,10 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this pr
 
 ## [Unreleased]
 
-_Nothing yet — v1.0.0 shipped._
+### Added
+- **Cloud hosting**: `Dockerfile`, `render.yaml`, and `HOSTING.md` (Railway/Render) so the dashboard runs remotely and phones connect from anywhere over `wss://`.
+- **Dashboard password** (`ACCESS_TOKEN`) with a login screen gating the live connection; `APP_TOKEN` still gates phone streams.
+- Hosted-aware **connect URL**: the dashboard shows `wss://<host>/app` when deployed (LAN address when local).
 
 ## [1.0.0] — 2026-07-14
 

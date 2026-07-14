@@ -10,6 +10,7 @@ import { StatusBar } from "./components/StatusBar";
 import { HiddenTray } from "./components/HiddenTray";
 import { IconClose } from "./lib/icons";
 import { AlertToasts } from "./components/AlertToasts";
+import { LoginGate } from "./components/LoginGate";
 import type { Alert, AlertSeverity, AlertType } from "./lib/alerts";
 import "./styles.css";
 
@@ -18,6 +19,12 @@ export function App() {
   const [connected, setConnected] = useState(false);
   const [devices, setDevices] = useState<Record<string, Device>>({});
   const [serverInfo, setServerInfo] = useState<ServerInfo>({ appUrls: [], tokenRequired: false });
+
+  const [authRequired, setAuthRequired] = useState(false);
+  const [accessToken, setAccessToken] = useState<string>(() => localStorage.getItem("pm.access") ?? "");
+  const [needLogin, setNeedLogin] = useState(false);
+  const [authError, setAuthError] = useState(false);
+  const openedRef = useRef(false);
 
   const [nicknames, setNicknames] = useState<Record<string, string>>(() => loadJSON("pm.nicknames", {}));
   const [hidden, setHidden] = useState<string[]>(() => loadJSON("pm.hidden", []));
@@ -119,21 +126,47 @@ export function App() {
   );
 
   useEffect(() => {
-    const hub = connectHub({
-      onOpen: () => setConnected(true),
-      onClose: () => setConnected(false),
-      onMessage: (msg: HubMessage) => {
-        handleAlerts(msg);
-        if (msg.type === "server-info") {
-          setServerInfo({ appUrls: msg.appUrls, tokenRequired: msg.tokenRequired });
-        } else {
-          setDevices((prev) => reduceDevices(prev, msg));
-        }
+    fetch("/health")
+      .then((r) => r.json())
+      .then((h: { authRequired?: boolean }) => {
+        setAuthRequired(!!h.authRequired);
+        if (h.authRequired && !localStorage.getItem("pm.access")) setNeedLogin(true);
+      })
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    if (authRequired && !accessToken) return; // wait for the login password
+    openedRef.current = false;
+    const hub = connectHub(
+      {
+        onOpen: () => {
+          openedRef.current = true;
+          setConnected(true);
+          setNeedLogin(false);
+          setAuthError(false);
+        },
+        onClose: () => {
+          setConnected(false);
+          if (authRequired && !openedRef.current) {
+            setNeedLogin(true);
+            if (accessToken) setAuthError(true);
+          }
+        },
+        onMessage: (msg: HubMessage) => {
+          handleAlerts(msg);
+          if (msg.type === "server-info") {
+            setServerInfo({ appUrls: msg.appUrls, tokenRequired: msg.tokenRequired });
+          } else {
+            setDevices((prev) => reduceDevices(prev, msg));
+          }
+        },
       },
-    });
+      accessToken || undefined,
+    );
     hubRef.current = hub;
     return () => hub.close();
-  }, [handleAlerts]);
+  }, [authRequired, accessToken, handleAlerts]);
 
   useEffect(() => saveJSON("pm.nicknames", nicknames), [nicknames]);
   useEffect(() => saveJSON("pm.hidden", hidden), [hidden]);
@@ -184,11 +217,14 @@ export function App() {
     ? Math.round(ordered.reduce((a, d) => a + (d.fps ?? 0), 0) / ordered.length)
     : 0;
 
-  const primaryUrl = useMemo(() => {
-    const urls = serverInfo.appUrls;
-    if (!urls.length) return null;
-    return urls.find((u) => /\/\/(192\.168|10\.)/.test(u)) ?? urls[0];
+  // Hosted (non-localhost) → phones connect to this public host; local → LAN URLs.
+  const connectUrls = useMemo(() => {
+    const host = location.hostname;
+    const isLocal = host === "localhost" || host === "127.0.0.1";
+    if (!isLocal) return [`${location.protocol === "https:" ? "wss" : "ws"}://${location.host}/app`];
+    return serverInfo.appUrls;
   }, [serverInfo]);
+  const primaryUrl = connectUrls.find((u) => /\/\/(192\.168|10\.)/.test(u)) ?? connectUrls[0] ?? null;
 
   const nickname = useCallback((d: Device) => nicknames[d.id] ?? d.name, [nicknames]);
   const send = (msg: unknown) => hubRef.current?.send(msg);
@@ -203,6 +239,13 @@ export function App() {
     const next: Theme = theme === "dark" ? "light" : "dark";
     setTheme(next);
     setThemeState(next);
+  };
+
+  const submitLogin = (password: string) => {
+    localStorage.setItem("pm.access", password);
+    setAuthError(false);
+    setNeedLogin(false);
+    setAccessToken(password);
   };
 
   const enterImmersive = () => {
@@ -254,7 +297,7 @@ export function App() {
             onToggleReorder={() => setReorderMode((v) => !v)}
             onAddDemo={() => send({ type: "mock-add" })}
             onRemoveDemo={() => send({ type: "mock-remove" })}
-            appUrls={serverInfo.appUrls}
+            appUrls={connectUrls}
             tokenRequired={serverInfo.tokenRequired}
           />
         )}
@@ -307,6 +350,8 @@ export function App() {
       )}
 
       <AlertToasts alerts={alerts} onDismiss={dismissAlert} />
+
+      {needLogin && <LoginGate error={authError} onSubmit={submitLogin} />}
     </div>
   );
 }

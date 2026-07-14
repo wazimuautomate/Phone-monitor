@@ -59,25 +59,23 @@ Then open the dashboard URL the helper prints (default `http://localhost:5173` i
 
 **Keep phones reachable while unattended:** leave them on chargers and enable "stay awake while charging" so they don't sleep and drop off Wi-Fi.
 
-## Hosting / production
+## Hosting
 
-The dashboard is **served by the helper on your desktop** — it is *not* a standalone website.
-The helper must run on a machine on the **same Wi-Fi/LAN as the phones** (to reach `ws://…/app`,
-and later ADB). So "deploying" is just:
+Host it in the cloud so it's reachable from anywhere — full step-by-step in **[HOSTING.md](HOSTING.md)**
+(Railway or Render). In short: deploy the helper (it serves the dashboard), set `ACCESS_TOKEN`
+(dashboard password), `APP_TOKEN` (phone token), and `MOCK=0`; then open `https://<your-app>` and
+point each phone's app at `wss://<your-app>/app`.
 
+> **Not Vercel/Netlify** — they're serverless and can't run the persistent WebSocket helper. Use a
+> Node/container host (Railway, Render, Fly, a VPS).
+
+**Or run locally:**
 ```bash
-npm run build     # builds the dashboard into web/dist
+npm run build     # build the dashboard
 npm start         # helper serves it at http://localhost:8787
 ```
-
-Open `http://localhost:8787` on the desktop (or `http://<desktop-lan-ip>:8787` from another
-device on the same network).
-
-**Why not Vercel/Netlify?** They host static/serverless sites. They could host the dashboard
-*files*, but the page is useless without the local helper it talks to (which must sit on your LAN
-to see the phones). Hosting the UI there would still require exposing the helper to the internet
-via a tunnel + auth — that's the planned "remote access over the internet" feature, not needed for
-local use.
+Open `http://localhost:8787` on the desktop (or `http://<desktop-lan-ip>:8787` from another device
+on the same Wi-Fi).
 
 ## Status
 

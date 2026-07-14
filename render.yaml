@@ -1,0 +1,18 @@
+# Render.com blueprint. New → Blueprint → point at this repo.
+services:
+  - type: web
+    name: phone-monitor
+    runtime: node
+    plan: starter # always-on; the free plan sleeps and would drop the phones
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    healthCheckPath: /health
+    envVars:
+      - key: MOCK
+        value: "0"
+      - key: NODE_VERSION
+        value: "20"
+      - key: ACCESS_TOKEN # dashboard password — set your own value
+        sync: false
+      - key: APP_TOKEN # phone token — set your own value
+        sync: false

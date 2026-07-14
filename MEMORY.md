@@ -5,6 +5,22 @@ Newest first. One entry per work session: what was done, decisions made, and wha
 
 ---
 
+## 2026-07-14 — Cloud hosting (v1 deployable from `main`)
+
+**Done:**
+- Helper auth: `ACCESS_TOKEN` gates `/ws` (checked on upgrade via `?token=`); `/health` returns `authRequired`; `APP_TOKEN` still gates `/app`.
+- Dashboard: `LoginGate` password overlay (when authRequired & no/invalid token); token in localStorage + appended to the WS URL; auth-fail re-prompts.
+- Hosted-aware connect URL: off-localhost the dashboard shows `wss://<host>/app` for phones; LAN URLs only when local.
+- Deploy: `Dockerfile`, `.dockerignore`, `render.yaml`, `HOSTING.md` (Railway recommended; Render alt). Helper honours `PORT`/`HOST`/`MOCK`.
+
+**Verified:** helper+web build; auth WS test PASS (health authRequired; no-token rejected; correct token connects + gets server-info); `npm start` serves the dashboard (HTTP 200) with auth — the exact cloud command.
+
+**Deploy (client):** Railway/Render → connect repo → set `MOCK=0`, `ACCESS_TOKEN` (dashboard pw), `APP_TOKEN` (phone token) → open `https://<app>`; phones → `wss://<app>/app`. See HOSTING.md.
+
+**Correction on earlier note:** Vercel/Netlify can't host this (serverless, no persistent WS). Use a Node/container host.
+
+---
+
 ## 2026-07-14 — v1 last touch: notification, recent connections, naming, hosting
 
 **Done (feature):**

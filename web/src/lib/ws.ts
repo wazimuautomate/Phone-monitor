@@ -21,8 +21,9 @@ export interface Hub {
   close(): void;
 }
 
-export function connectHub(handlers: HubHandlers): Hub {
-  const url = `${location.protocol === "https:" ? "wss" : "ws"}://${location.host}/ws`;
+export function connectHub(handlers: HubHandlers, token?: string): Hub {
+  const base = `${location.protocol === "https:" ? "wss" : "ws"}://${location.host}/ws`;
+  const url = token ? `${base}?token=${encodeURIComponent(token)}` : base;
   let socket = new WebSocket(url);
   let closed = false;
   let retry: ReturnType<typeof setTimeout> | undefined;

@@ -792,6 +792,73 @@ code {
   }
 }
 
+/* ===== Login gate ===== */
+.login-gate {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg);
+  padding: 24px;
+}
+.login-card {
+  width: 100%;
+  max-width: 340px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 28px 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  text-align: center;
+}
+.login-logo {
+  width: 40px;
+  height: 40px;
+}
+.login-card h2 {
+  margin: 6px 0 0;
+  font-size: 18px;
+}
+.login-card p {
+  margin: 0 0 8px;
+  font-size: 13px;
+  color: var(--muted);
+}
+.login-card input {
+  width: 100%;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 14px;
+}
+.login-card input:focus {
+  outline: none;
+  border-color: var(--green);
+}
+.login-card button {
+  width: 100%;
+  margin-top: 6px;
+  background: var(--green);
+  color: #04210f;
+  border: none;
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.login-error {
+  color: var(--red);
+  font-size: 12px;
+}
+
 @media (max-width: 720px) {
   .conn-info {
     display: none;
