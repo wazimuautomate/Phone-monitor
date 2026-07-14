@@ -1,6 +1,6 @@
 import type { WebSocket, WebSocketServer } from "ws";
 import type { SourceManager } from "./sources/source-manager.js";
-import type { SourceEvent, VideoPacket } from "./sources/types.js";
+import type { ControlCmd, SourceEvent, VideoPacket } from "./sources/types.js";
 
 export interface ServerInfo {
   appUrls: string[];
@@ -20,7 +20,7 @@ export function attachHub(wss: WebSocketServer, sources: SourceManager, info: Se
     const off = sources.onEvent((event) => forward(ws, event));
     ws.on("close", off);
     ws.on("message", (raw) => {
-      let msg: { type?: string; deviceId?: string } | undefined;
+      let msg: { type?: string; deviceId?: string; cmd?: ControlCmd } | undefined;
       try {
         msg = JSON.parse(raw.toString());
       } catch {
@@ -39,7 +39,10 @@ export function attachHub(wss: WebSocketServer, sources: SourceManager, info: Se
         case "mock-remove":
           sources.removeMockDevice();
           break;
-        // Phase 8: remote-control commands (tap/swipe/keys) will be handled here.
+        case "control":
+          // Remote control (tap/swipe/keys/text) — route to the owning source.
+          if (typeof msg.deviceId === "string" && msg.cmd) sources.sendControl(msg.deviceId, msg.cmd);
+          break;
       }
     });
   });

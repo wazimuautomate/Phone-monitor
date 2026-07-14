@@ -5,6 +5,25 @@ Newest first. One entry per work session: what was done, decisions made, and wha
 
 ---
 
+## 2026-07-14 — v2 pivot: desktop app + AnyDesk-style remote control (built)
+
+**Scope change** (client, after the v1 demo): from a hosted browser dashboard to an **installable desktop app + phone agent** with real **remote control** (AnyDesk-style), near *and* far; his phones all have Dev Options; UI + realtime are paramount; friends will use it (monetization later — free tier 1 device / accounts later). Full plan in `REBUILD-PLAN.md`. Decisions locked: WebRTC P2P + relay fallback; mobile = agent **and** controller; Electron; standalone v1 (him).
+
+**Built this session** (parallelized: 3 subagents for app/, web/, relay/ + main-thread integration):
+- **Electron desktop app** (`desktop/`): `main.js` starts the helper in-process (`createHelper()`) and opens a Chromium window at `http://127.0.0.1:8787`. Assets bundled by esbuild (`scripts/build.mjs`): `web/dist` → `build/web`, helper → single `build/helper.cjs`. **Built + verified a portable `.exe`** (`desktop/release/PhoneMonitor-2.0.0-portable.exe`, 71 MB): launched it, embedded helper served `/health` 200 + the dashboard, clean shutdown.
+- **Helper**: dropped `express` (tiny built-in static server + `/health`) so it bundles into Electron; `index.ts` now exports `createHelper(opts)` + keeps CLI. **Control channel**: `ControlCmd` type (normalized 0..1 coords), `/ws` `{type:"control",deviceId,cmd}` → `SourceManager.sendControl` → `WifiAppSource.sendControl` sends `{type:"control",cmd}` down the phone socket. `DeviceInfo` gained width/height/controllable.
+- **Android Agent** (`app/`): new `ControlService` (AccessibilityService) injects tap/swipe/back/home/recents/notifications/power/volume/text — no root/ADB. Capture WS is now bidirectional; `CaptureService` parses control frames → `ControlService.instance.perform`. `hello` reports real display px. Enable-accessibility card in `MainActivity`.
+- **Web** (`web/`): AnyDesk-style **FocusedView** (click a card → big screen + on-screen nav bar; click→tap, drag→swipe, wheel→scroll, keys→text) + `sendControl` on the ws hub + `video-bus` caches the codec config for late subscribers + a UI polish pass. tsc clean.
+- **Relay** (`relay/`): minimal signaling broker (pairing codes + SDP/ICE relay, no media) for the future remote path; TURN documented not implemented. Typechecks clean.
+- **CI**: `desktop.yml` builds the portable `.exe` (→ `desktop-latest` release); `android.yml` already builds the APK (→ `capture-latest`); `ci.yml` skips Electron's binary download.
+- **Docs**: `REBUILD-PLAN.md`, CLAUDE v2 banner, README rewrite, CHANGELOG v2 section.
+
+**Verified locally**: helper typecheck, web `vite build`, relay typecheck, helper esbuild bundle boots, and the packaged `.exe` runs and serves. **APK** builds in CI only (no local Android Studio).
+
+**Next**: push `feature` → CI produces `.apk` + CI `.exe`; then WebRTC remote path (wire `relay/` + pairing into desktop & agent), ADB turbo, Controller app, then monetization. Merge to `main` once the client confirms on real phones.
+
+---
+
 ## 2026-07-14 — Diagnose live Render deploy + make phone connection self-explaining
 
 **Tested against the real deployment** (`phone-monitor-yxbo.onrender.com`, creds the owner will rotate):

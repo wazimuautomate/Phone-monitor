@@ -127,6 +127,68 @@ export const IconPlus = svg(
 
 export const IconMinus = svg(<line x1="5" y1="12" x2="19" y2="12" />);
 
+// ---- Remote-control affordance + control-bar icons ----
+
+// Mouse-pointer — the "Control" affordance shown on a card's screen.
+export const IconPointer = svg(
+  <>
+    <path d="M3 3l7.07 17 2.51-7.42L20 10.07 3 3z" />
+    <path d="M13 13l6 6" />
+  </>,
+);
+
+// Android nav: Back (arrow-left), Home (house), Recents (rounded square).
+export const IconBack = svg(
+  <>
+    <line x1="19" y1="12" x2="5" y2="12" />
+    <polyline points="12 19 5 12 12 5" />
+  </>,
+);
+
+export const IconHome = svg(
+  <>
+    <path d="M3 9.5 12 3l9 6.5V20a1 1 0 0 1-1 1h-5v-6H10v6H4a1 1 0 0 1-1-1z" />
+  </>,
+);
+
+export const IconRecents = svg(<rect x="4" y="4" width="16" height="16" rx="2.5" />);
+
+export const IconBell = svg(
+  <>
+    <path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9" />
+    <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+  </>,
+);
+
+export const IconPower = svg(
+  <>
+    <path d="M18.36 6.64a9 9 0 1 1-12.73 0" />
+    <line x1="12" y1="2" x2="12" y2="12" />
+  </>,
+);
+
+export const IconVolumeUp = svg(
+  <>
+    <polygon points="11 5 6 9 3 9 3 15 6 15 11 19 11 5" />
+    <line x1="19" y1="9" x2="19" y2="15" />
+    <line x1="16" y1="12" x2="22" y2="12" />
+  </>,
+);
+
+export const IconVolumeDown = svg(
+  <>
+    <polygon points="11 5 6 9 3 9 3 15 6 15 11 19 11 5" />
+    <line x1="16" y1="12" x2="22" y2="12" />
+  </>,
+);
+
+export const IconBattery = svg(
+  <>
+    <rect x="2" y="7" width="18" height="10" rx="2.2" />
+    <line x1="22.5" y1="10.5" x2="22.5" y2="13.5" />
+  </>,
+);
+
 // Brand mark — fixed colors regardless of theme.
 export function Logo({ className }: P) {
   return (

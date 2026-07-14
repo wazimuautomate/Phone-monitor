@@ -13,6 +13,7 @@ interface DeviceGridProps {
   onHide: (id: string) => void;
   onRemove: (id: string) => void;
   onReorder: (orderedVisibleIds: string[]) => void;
+  onFocus: (id: string) => void;
 }
 
 export function DeviceGrid({
@@ -25,6 +26,7 @@ export function DeviceGrid({
   onHide,
   onRemove,
   onReorder,
+  onFocus,
 }: DeviceGridProps) {
   const [dragId, setDragId] = useState<string | null>(null);
   const [target, setTarget] = useState<{ id: string; side: "before" | "after" } | null>(null);
@@ -83,6 +85,7 @@ export function DeviceGrid({
               onRename={(name) => onRename(d.id, name)}
               onHide={() => onHide(d.id)}
               onRemove={() => onRemove(d.id)}
+              onFocus={() => onFocus(d.id)}
             />
           </div>
         );

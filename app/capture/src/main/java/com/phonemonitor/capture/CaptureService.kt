@@ -22,6 +22,7 @@ import android.os.IBinder
 import android.os.PowerManager
 import android.view.Surface
 import androidx.core.content.ContextCompat
+import org.json.JSONObject
 import java.nio.ByteBuffer
 import kotlin.concurrent.thread
 
@@ -119,11 +120,33 @@ class CaptureService : Service() {
 
         val (w, h) = scale(screenW, screenH, MAX_DIM)
         CaptureState.set(CaptureState.CONNECTING, "Connecting to helper…")
-        streamer = Streamer(helperUrl, token, buildHello(w, h)) { status -> onStreamerStatus(status) }
-            .also { it.start() }
+        streamer = Streamer(
+            helperUrl,
+            token,
+            // Report the real display size so the desktop maps normalized
+            // control coordinates back to exact pixels.
+            buildHello(screenW, screenH),
+            onStatus = { status -> onStreamerStatus(status) },
+            onMessage = { text -> onControlMessage(text) },
+        ).also { it.start() }
         startEncoder(w, h, dpi)
 
         return START_STICKY
+    }
+
+    /**
+     * Handle a text frame from the desktop. We only act on remote-control
+     * commands: {"type":"control","cmd":{"action":…}}. Anything malformed or
+     * unrecognised is ignored so a bad message can't crash the stream.
+     */
+    private fun onControlMessage(text: String) {
+        runCatching {
+            val obj = JSONObject(text)
+            if (obj.optString("type") != "control") return
+            val cmd = obj.optJSONObject("cmd") ?: return
+            val control = Control.from(cmd) ?: return
+            ControlService.instance?.perform(control)
+        }
     }
 
     private fun onStreamerStatus(status: String) {
@@ -208,12 +231,12 @@ class CaptureService : Service() {
         }
     }
 
-    private fun buildHello(w: Int, h: Int): String =
+    private fun buildHello(screenW: Int, screenH: Int): String =
         """{"type":"hello",""" +
             """"model":${jsonStr(Build.MODEL)},""" +
             """"manufacturer":${jsonStr(Build.MANUFACTURER)},""" +
             """"androidVersion":${jsonStr(Build.VERSION.RELEASE)},""" +
-            """"width":$w,"height":$h,"battery":${batteryPercent()},"screenLocked":false}"""
+            """"width":$screenW,"height":$screenH,"battery":${batteryPercent()},"screenLocked":false}"""
 
     private fun batteryPercent(): Int {
         val bm = getSystemService(Context.BATTERY_SERVICE) as BatteryManager

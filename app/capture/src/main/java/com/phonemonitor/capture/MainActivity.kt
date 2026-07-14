@@ -1,6 +1,7 @@
 package com.phonemonitor.capture
 
 import android.app.Activity
+import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.SharedPreferences
@@ -12,6 +13,7 @@ import android.os.Build
 import android.os.Bundle
 import android.os.PowerManager
 import android.provider.Settings
+import android.text.TextUtils
 import android.util.DisplayMetrics
 import android.view.View
 import androidx.activity.result.contract.ActivityResultContracts
@@ -58,6 +60,7 @@ class MainActivity : AppCompatActivity() {
             CaptureState.set(CaptureState.IDLE, "Stopped")
         }
         binding.clearHistory.setOnClickListener { clearHistory() }
+        binding.enableControl.setOnClickListener { openAccessibilitySettings() }
 
         renderHistory()
     }
@@ -66,6 +69,8 @@ class MainActivity : AppCompatActivity() {
         super.onResume()
         CaptureState.listener = { state, msg -> runOnUiThread { renderStatus(state, msg) } }
         renderStatus(CaptureState.state, CaptureState.message)
+        // Reflect the accessibility state each time we return (e.g. from Settings).
+        renderControlStatus()
     }
 
     override fun onPause() {
@@ -151,6 +156,35 @@ class MainActivity : AppCompatActivity() {
         val busy = state == CaptureState.STREAMING || state == CaptureState.CONNECTING
         binding.startButton.isEnabled = !busy
         binding.stopButton.isEnabled = busy
+    }
+
+    // ---- Remote control (accessibility) ----
+
+    private fun renderControlStatus() {
+        val enabled = isControlEnabled()
+        binding.controlStatus.setText(if (enabled) R.string.control_enabled else R.string.control_disabled)
+        val color = ContextCompat.getColor(this, if (enabled) R.color.pm_green else R.color.pm_muted)
+        binding.controlStatus.setTextColor(color)
+        binding.controlDot.backgroundTintList = ColorStateList.valueOf(color)
+    }
+
+    /** True if our ControlService is in the system's enabled-accessibility list. */
+    private fun isControlEnabled(): Boolean {
+        val expected = ComponentName(this, ControlService::class.java)
+        val enabled = Settings.Secure.getString(
+            contentResolver,
+            Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES,
+        ) ?: return false
+        val splitter = TextUtils.SimpleStringSplitter(':')
+        splitter.setString(enabled)
+        for (entry in splitter) {
+            if (ComponentName.unflattenFromString(entry) == expected) return true
+        }
+        return false
+    }
+
+    private fun openAccessibilitySettings() {
+        runCatching { startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)) }
     }
 
     // ---- Recent connections ----

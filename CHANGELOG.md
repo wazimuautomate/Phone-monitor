@@ -5,6 +5,32 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this pr
 
 ## [Unreleased]
 
+### v2 — Desktop app + AnyDesk-style remote control (in progress)
+
+The project pivoted from a hosted browser dashboard to an **installable desktop app** with real **remote control** of phones. See `REBUILD-PLAN.md` for the full plan.
+
+#### Added
+- **Electron desktop app** (`desktop/`): a native Windows window that embeds the helper in-process and serves the dashboard locally, then points a Chromium window at it. Builds a **portable `.exe`** (`npm run dist:desktop`) — double-click to run, no install. Assets are bundled with esbuild (`desktop/scripts/build.mjs`); the helper ships as a single `build/helper.cjs`.
+- **Remote control, end-to-end (AnyDesk-style):**
+  - Android **Agent** gained `ControlService` (an AccessibilityService) that injects **tap, swipe, Back/Home/Recents/Notifications/Power, volume, and text** — no root, no ADB. The capture WebSocket is now **bidirectional** (desktop → phone control frames), and an in-app card lets the user enable the service.
+  - Helper routes control: `/ws` accepts `{type:"control",deviceId,cmd}` and forwards to the owning source; `WifiAppSource.sendControl()` sends `{type:"control",cmd}` down the phone socket. New `ControlCmd` type (normalized 0..1 coordinates).
+  - Dashboard gained an **AnyDesk-style focused control view**: click a phone to open a large live screen with on-screen nav buttons; click→tap, drag→swipe, wheel→scroll, keyboard→text — plus a UI polish pass.
+- **WebRTC signaling relay** (`relay/`): a minimal broker (pairing codes + SDP/ICE relay, never touches media) for the future out-of-home path. TURN is documented, not yet implemented.
+- **CI**: `desktop.yml` builds the Windows portable `.exe` on every push and publishes it to the `desktop-latest` release (mirrors `android.yml` → `capture-latest`).
+- Helper `DeviceInfo` gained `width`/`height` (real screen px, for coordinate mapping) and `controllable`; the agent's `hello` now reports real display pixels.
+
+#### Changed
+- **Helper no longer depends on `express`** — a small built-in static server + `/health` replaces it, so the helper bundles cleanly into Electron. `index.ts` now exports `createHelper(options)` (embeddable) alongside its CLI bootstrap.
+- Monorepo gained `desktop` and `relay` workspaces and root scripts `prepare:desktop` / `start:desktop` / `dist:desktop`.
+- `CLAUDE.md` gained a v2-pivot banner; `README.md` rewritten around the desktop app + agent.
+
+#### Retired
+- Cloud hosting of the dashboard (Docker/Render/`HOSTING.md`, dashboard-password login) is superseded by the desktop app + peer-to-peer model.
+
+---
+
+### v1 (cloud-hosting era — superseded by v2 above)
+
 ### Added
 - **Cloud hosting**: `Dockerfile`, `render.yaml`, and `HOSTING.md` (Railway/Render) so the dashboard runs remotely and phones connect from anywhere over `wss://`.
 - **Dashboard password** (`ACCESS_TOKEN`) with a login screen gating the live connection; `APP_TOKEN` still gates phone streams.

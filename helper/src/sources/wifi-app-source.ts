@@ -1,6 +1,12 @@
 import type { IncomingMessage } from "node:http";
 import type { RawData, WebSocket, WebSocketServer } from "ws";
-import type { ConnectionType, DeviceInfo, DeviceSource, SourceEventHandler } from "./types.js";
+import type {
+  ConnectionType,
+  ControlCmd,
+  DeviceInfo,
+  DeviceSource,
+  SourceEventHandler,
+} from "./types.js";
 
 let counter = 0;
 
@@ -70,6 +76,22 @@ export class WifiAppSource implements DeviceSource {
     ws.on("error", () => ws.close());
   }
 
+  /**
+   * Deliver a remote-control command to a connected app device. The command is
+   * sent as a JSON text frame `{type:"control",cmd}`; the phone's Accessibility
+   * service injects the corresponding gesture/key/text. Returns true if sent.
+   */
+  sendControl(id: string, cmd: ControlCmd): boolean {
+    const ws = this.sockets.get(id);
+    if (!ws || ws.readyState !== ws.OPEN) return false;
+    try {
+      ws.send(JSON.stringify({ type: "control", cmd }));
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
   /** Disconnect a connected app device (user chose "Remove"). */
   remove(id: string): boolean {
     const ws = this.sockets.get(id);
@@ -103,6 +125,11 @@ export class WifiAppSource implements DeviceSource {
         status: "online",
         fps: 0,
         screenLocked: msg.screenLocked === true,
+        width: typeof msg.width === "number" ? msg.width : undefined,
+        height: typeof msg.height === "number" ? msg.height : undefined,
+        // The agent app injects input via its AccessibilityService, so app
+        // devices are remotely controllable (AnyDesk-style), not view-only.
+        controllable: true,
         lastUpdate: Date.now(),
       };
       this.devices.set(id, info);

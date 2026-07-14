@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { Device } from "../types";
 import { PhoneScreen } from "./PhoneScreen";
-import { IconDots, IconDrag, IconEyeOff, IconPen, IconTrash } from "../lib/icons";
+import { IconDots, IconDrag, IconEyeOff, IconPen, IconPointer, IconTrash } from "../lib/icons";
 
 interface DeviceCardProps {
   device: Device;
@@ -10,9 +10,10 @@ interface DeviceCardProps {
   onRename: (name: string) => void;
   onHide: () => void;
   onRemove: () => void;
+  onFocus: () => void;
 }
 
-export function DeviceCard({ device, name, reorderMode, onRename, onHide, onRemove }: DeviceCardProps) {
+export function DeviceCard({ device, name, reorderMode, onRename, onHide, onRemove, onFocus }: DeviceCardProps) {
   const [editing, setEditing] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [draft, setDraft] = useState(name);
@@ -97,7 +98,29 @@ export function DeviceCard({ device, name, reorderMode, onRename, onHide, onRemo
         </div>
       </div>
 
-      <PhoneScreen device={device} />
+      {reorderMode ? (
+        <PhoneScreen device={device} />
+      ) : (
+        <div
+          className="screen-wrap"
+          role="button"
+          tabIndex={0}
+          title="Open control view"
+          onClick={onFocus}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              onFocus();
+            }
+          }}
+        >
+          <PhoneScreen device={device} />
+          <div className="control-hint">
+            <IconPointer />
+            <span>Control</span>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

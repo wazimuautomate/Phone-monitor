@@ -7,20 +7,39 @@ import { videoBus, type VideoFrameMsg } from "../lib/video-bus";
  * it is decoded via WebCodecs onto a canvas; otherwise a synthetic placeholder
  * screen is shown so the layout matches the real product (and demo devices work).
  */
-export function PhoneScreen({ device }: { device: Device }) {
+interface PhoneScreenProps {
+  device: Device;
+  /** Larger layout variant used by the focused control view. */
+  large?: boolean;
+  /** Reports the intrinsic (decoded) video dimensions when they change. */
+  onVideoSize?: (w: number, h: number) => void;
+}
+
+export function PhoneScreen({ device, large, onVideoSize }: PhoneScreenProps) {
   const [hasVideo, setHasVideo] = useState(false);
   const onFirstFrame = useCallback(() => setHasVideo(true), []);
   return (
-    <div className="screen">
-      <LiveScreen deviceId={device.id} onFirstFrame={onFirstFrame} />
+    <div className={`screen ${large ? "large" : ""}`}>
+      <LiveScreen deviceId={device.id} onFirstFrame={onFirstFrame} onVideoSize={onVideoSize} />
       {!hasVideo && <MockScreen device={device} />}
       <span className="fps-badge">{device.fps ?? 0} fps</span>
     </div>
   );
 }
 
-function LiveScreen({ deviceId, onFirstFrame }: { deviceId: string; onFirstFrame: () => void }) {
+function LiveScreen({
+  deviceId,
+  onFirstFrame,
+  onVideoSize,
+}: {
+  deviceId: string;
+  onFirstFrame: () => void;
+  onVideoSize?: (w: number, h: number) => void;
+}) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  // Keep the latest size callback without re-subscribing the decoder.
+  const onVideoSizeRef = useRef(onVideoSize);
+  onVideoSizeRef.current = onVideoSize;
 
   useEffect(() => {
     const w = window as unknown as {
@@ -37,6 +56,8 @@ function LiveScreen({ deviceId, onFirstFrame }: { deviceId: string; onFirstFrame
     let haveKey = false;
     let ts = 0;
     let firstShown = false;
+    let lastW = 0;
+    let lastH = 0;
 
     const makeDecoder = (codec: string): VideoDecoderLike => {
       const d = new w.VideoDecoder!({
@@ -45,6 +66,11 @@ function LiveScreen({ deviceId, onFirstFrame }: { deviceId: string; onFirstFrame
             if (canvas.width !== frame.displayWidth) canvas.width = frame.displayWidth;
             if (canvas.height !== frame.displayHeight) canvas.height = frame.displayHeight;
             ctx.drawImage(frame as unknown as CanvasImageSource, 0, 0, canvas.width, canvas.height);
+            if (lastW !== frame.displayWidth || lastH !== frame.displayHeight) {
+              lastW = frame.displayWidth;
+              lastH = frame.displayHeight;
+              onVideoSizeRef.current?.(lastW, lastH);
+            }
             if (!firstShown) {
               firstShown = true;
               onFirstFrame();

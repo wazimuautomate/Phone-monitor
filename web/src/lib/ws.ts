@@ -10,6 +10,24 @@ export type HubMessage =
   | { type: "stats"; deviceId: string; patch: Partial<Device> }
   | { type: "server-info"; appUrls: string[]; tokenRequired: boolean };
 
+// Hardware / navigation keys the phone agent understands.
+export type ControlKey =
+  | "back"
+  | "home"
+  | "recents"
+  | "notifications"
+  | "power"
+  | "volup"
+  | "voldown";
+
+// A single remote-control command. Coordinates are floats in [0,1], origin
+// top-left, normalized to the *video content* (letterboxing already removed).
+export type ControlCmd =
+  | { action: "tap"; x: number; y: number }
+  | { action: "swipe"; x1: number; y1: number; x2: number; y2: number; ms: number }
+  | { action: "key"; key: ControlKey }
+  | { action: "text"; text: string };
+
 interface HubHandlers {
   onOpen?: () => void;
   onClose?: () => void;
@@ -18,6 +36,9 @@ interface HubHandlers {
 
 export interface Hub {
   send(msg: unknown): void;
+  // Outgoing remote-control frame. Wire shape (do not change — the phone
+  // agent parses exactly this): {"type":"control","deviceId":..,"cmd":{..}}.
+  sendControl(deviceId: string, cmd: ControlCmd): void;
   close(): void;
 }
 
@@ -57,6 +78,11 @@ export function connectHub(handlers: HubHandlers, token?: string): Hub {
   return {
     send(msg: unknown) {
       if (socket.readyState === WebSocket.OPEN) socket.send(JSON.stringify(msg));
+    },
+    sendControl(deviceId: string, cmd: ControlCmd) {
+      if (socket.readyState === WebSocket.OPEN) {
+        socket.send(JSON.stringify({ type: "control", deviceId, cmd }));
+      }
     },
     close() {
       closed = true;

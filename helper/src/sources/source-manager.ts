@@ -1,4 +1,4 @@
-import type { DeviceInfo, DeviceSource, SourceEventHandler } from "./types.js";
+import type { ControlCmd, DeviceInfo, DeviceSource, SourceEventHandler } from "./types.js";
 import { MockSource } from "./mock-source.js";
 
 /**
@@ -39,6 +39,14 @@ export class SourceManager {
   remove(deviceId: string): boolean {
     for (const s of this.sources) {
       if (s.remove?.(deviceId)) return true;
+    }
+    return false;
+  }
+
+  /** Route a remote-control command to whichever source owns the device. */
+  sendControl(deviceId: string, cmd: ControlCmd): boolean {
+    for (const s of this.sources) {
+      if (s.sendControl?.(deviceId, cmd)) return true;
     }
     return false;
   }

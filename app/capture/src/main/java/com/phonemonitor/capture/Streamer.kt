@@ -17,6 +17,9 @@ import java.util.concurrent.TimeUnit
  *   1. a JSON "hello" text frame (device model/version/battery/size)
  *   2. binary frames = [1 byte type: 0=config, 1=key, 2=delta] + H.264 bytes
  *
+ * The socket is bidirectional: the desktop sends JSON control text frames back
+ * down, delivered via `onMessage`.
+ *
  * `onStatus` receives "open", "closed", or "error: <human reason>".
  */
 class Streamer(
@@ -24,6 +27,7 @@ class Streamer(
     private val token: String,
     private val hello: String,
     private val onStatus: (String) -> Unit,
+    private val onMessage: (String) -> Unit = {},
 ) {
     private val client = OkHttpClient.Builder()
         .pingInterval(10, TimeUnit.SECONDS)
@@ -50,6 +54,10 @@ class Streamer(
                 open = true
                 webSocket.send(hello)
                 onStatus("open")
+            }
+
+            override fun onMessage(webSocket: WebSocket, text: String) {
+                this@Streamer.onMessage(text)
             }
 
             override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {

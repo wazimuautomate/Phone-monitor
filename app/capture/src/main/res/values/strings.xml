@@ -11,4 +11,12 @@
 
     <string name="recent_label">Recent — tap to connect, long-press to remove</string>
     <string name="clear_recent">Clear</string>
+
+    <string name="control_service_label">Phone Monitor — Remote control</string>
+    <string name="accessibility_desc">Lets the desktop dashboard tap, swipe, type and press buttons on this phone. Only turn this on for phones you control.</string>
+    <string name="control_title">Remote control</string>
+    <string name="control_enabled">Enabled</string>
+    <string name="control_disabled">Disabled</string>
+    <string name="control_enable">Enable remote control</string>
+    <string name="control_explain">Turn on the “Phone Monitor — Remote control” accessibility service so the desktop can tap, swipe and type on this phone. Screen mirroring works without it.</string>
 </resources>

@@ -1,19 +1,24 @@
 {
   "name": "phone-monitor",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "private": true,
-  "description": "Real-time multi-phone monitoring dashboard: a browser UI + local Node helper that mirror many Android phones on one desktop screen.",
+  "description": "Phone Monitor: an Electron desktop app + Android agent that live-mirror and remotely control (AnyDesk-style) many Android phones — near or far, real-time, private.",
   "type": "module",
   "workspaces": [
     "helper",
-    "web"
+    "web",
+    "relay",
+    "desktop"
   ],
   "scripts": {
     "dev": "concurrently -k -n helper,web -c blue,green \"npm:dev:helper\" \"npm:dev:web\"",
     "dev:helper": "npm run dev -w helper",
     "dev:web": "npm run dev -w web",
     "build": "npm run build -w web && npm run build -w helper",
-    "start": "npm run start -w helper"
+    "start": "npm run start -w helper",
+    "prepare:desktop": "npm run build -w web && npm run build -w helper && npm run prepare-assets -w desktop",
+    "start:desktop": "npm run prepare:desktop && npm run start -w desktop",
+    "dist:desktop": "npm run prepare:desktop && npm run dist -w desktop"
   },
   "devDependencies": {
     "concurrently": "^9.1.0"

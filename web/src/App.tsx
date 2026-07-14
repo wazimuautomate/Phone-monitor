@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { connectHub, type Hub, type HubMessage } from "./lib/ws";
+import { connectHub, type ControlCmd, type Hub, type HubMessage } from "./lib/ws";
 import type { Device, ServerInfo } from "./types";
 import { getTheme, setTheme, type Theme } from "./lib/theme";
 import { loadJSON, saveJSON } from "./lib/persist";
@@ -8,6 +8,7 @@ import { DeviceGrid } from "./components/DeviceGrid";
 import { SettingsDrawer } from "./components/SettingsDrawer";
 import { StatusBar } from "./components/StatusBar";
 import { HiddenTray } from "./components/HiddenTray";
+import { FocusedView } from "./components/FocusedView";
 import { IconClose } from "./lib/icons";
 import { AlertToasts } from "./components/AlertToasts";
 import { LoginGate } from "./components/LoginGate";
@@ -36,6 +37,7 @@ export function App() {
   const [immersive, setImmersive] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [hiddenTrayOpen, setHiddenTrayOpen] = useState(false);
+  const [focusedId, setFocusedId] = useState<string | null>(null);
 
   const hubRef = useRef<Hub | null>(null);
 
@@ -228,6 +230,16 @@ export function App() {
 
   const nickname = useCallback((d: Device) => nicknames[d.id] ?? d.name, [nicknames]);
   const send = (msg: unknown) => hubRef.current?.send(msg);
+  const sendControl = useCallback(
+    (deviceId: string, cmd: ControlCmd) => hubRef.current?.sendControl(deviceId, cmd),
+    [],
+  );
+
+  // Close the focused control view if its device goes away.
+  const focusedDevice = focusedId ? devices[focusedId] : undefined;
+  useEffect(() => {
+    if (focusedId && !devices[focusedId]) setFocusedId(null);
+  }, [focusedId, devices]);
 
   const refresh = useCallback(() => {
     setRefreshing(true);
@@ -321,6 +333,7 @@ export function App() {
           onHide={onHide}
           onRemove={onRemove}
           onReorder={onReorder}
+          onFocus={setFocusedId}
         />
       )}
 
@@ -347,6 +360,15 @@ export function App() {
         <button className="exit-immersive" onClick={exitImmersive} title="Exit fullscreen (Esc)">
           <IconClose />
         </button>
+      )}
+
+      {focusedDevice && (
+        <FocusedView
+          device={focusedDevice}
+          name={nickname(focusedDevice)}
+          sendControl={sendControl}
+          onClose={() => setFocusedId(null)}
+        />
       )}
 
       <AlertToasts alerts={alerts} onDismiss={dismissAlert} />

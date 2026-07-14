@@ -4,6 +4,10 @@ dist/
 build/
 *.tsbuildinfo
 
+# electron desktop packaging output
+desktop/release/
+desktop/build/
+
 # logs / env
 *.log
 .env

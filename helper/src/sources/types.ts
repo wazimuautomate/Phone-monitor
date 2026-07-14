@@ -23,7 +23,21 @@ export interface DeviceInfo {
   lastUpdate?: number; // epoch ms
   screenLocked?: boolean;
   group?: string;
+  width?: number; // captured screen width in px (for coordinate mapping)
+  height?: number; // captured screen height in px
+  controllable?: boolean; // device accepts remote-control commands
 }
+
+/**
+ * A remote-control command sent dashboard -> helper -> device.
+ * Coordinates are normalized floats in [0,1], origin top-left (x right, y down),
+ * so they are resolution-independent; the device maps them to real pixels.
+ */
+export type ControlCmd =
+  | { action: "tap"; x: number; y: number }
+  | { action: "swipe"; x1: number; y1: number; x2: number; y2: number; ms?: number }
+  | { action: "key"; key: "back" | "home" | "recents" | "notifications" | "power" | "volup" | "voldown" }
+  | { action: "text"; text: string };
 
 /** An encoded H.264 packet headed for the browser (decoded via WebCodecs). */
 export interface VideoPacket {
@@ -55,4 +69,6 @@ export interface DeviceSource {
   list(): DeviceInfo[];
   /** Optional: disconnect/remove a device this source owns. Returns true if handled. */
   remove?(deviceId: string): boolean;
+  /** Optional: deliver a remote-control command to a device this source owns. Returns true if handled. */
+  sendControl?(deviceId: string, cmd: ControlCmd): boolean;
 }
