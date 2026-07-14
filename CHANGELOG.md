@@ -15,6 +15,12 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this pr
 
 ### Fixed
 - Capture app **could not connect to a hosted helper**: the address the user typed was used verbatim, so a missing `/app` path (or a token pasted onto the URL) made every attempt drop with "Connection lost — reconnecting". The app now **normalizes the address**: adds `wss://` (or `ws://` for LAN), converts `http(s)://`→`ws(s)://`, appends `/app` when no path is given, and strips a stray `=token`/`?…`/space accidentally pasted into the URL. Pasting the plain dashboard link (`https://your-app.onrender.com`) now connects.
+- Capture app now shows the **real failure reason** instead of a blanket "Connection lost — reconnecting": wrong token (401), wrong path/404, server waking (502/503/504), DNS/Wi-Fi ("can't find that address"), or TLS ("use wss://"). A clean server restart shows "Reconnecting…" (not an error).
+
+### Changed
+- **Phone token now travels as `?token=` query param as well as the `x-pm-token` header.** The dashboard's `/ws` already authenticates via query param and works through Cloudflare/Render; some proxies strip custom headers on the WebSocket upgrade, so the header alone could silently fail. `/app` now accepts the token from **either**, and rejects a bad one with a real **HTTP 401** (so the app can name the cause).
+- **Helper keepalive**: pings every socket (dashboard + phones) every 30s and drops any that misses a pong, so half-open connections (phone lost Wi-Fi, laptop slept) are cleaned up and the dashboard reflects reality.
+- Verified against the live Render deployment: a realistic 30fps stream (1877 frames / 3.5 MB) held for 75s with no drop — the hosting is stable; connection failures were client-side (address/token), which the new diagnostics now surface.
 
 ## [1.0.0] — 2026-07-14
 

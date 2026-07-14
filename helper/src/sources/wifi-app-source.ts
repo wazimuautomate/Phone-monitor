@@ -31,9 +31,16 @@ export class WifiAppSource implements DeviceSource {
   }
 
   private onConnection(ws: WebSocket, req: IncomingMessage): void {
-    if (this.token && req.headers["x-pm-token"] !== this.token) {
-      ws.close(1008, "bad token");
-      return;
+    // Token may arrive via the x-pm-token header or a ?token= query param.
+    // (The upgrade handler already gates this; re-checked here as defense in depth.)
+    if (this.token) {
+      const url = new URL(req.url ?? "/", "http://localhost");
+      const provided =
+        (req.headers["x-pm-token"] as string | undefined) ?? url.searchParams.get("token") ?? "";
+      if (provided !== this.token) {
+        ws.close(1008, "bad token");
+        return;
+      }
     }
 
     const id = `app-${++counter}`;

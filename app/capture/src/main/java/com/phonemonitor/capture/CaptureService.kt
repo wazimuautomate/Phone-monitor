@@ -127,13 +127,19 @@ class CaptureService : Service() {
     }
 
     private fun onStreamerStatus(status: String) {
-        when (status) {
-            "open" -> {
+        when {
+            status == "open" -> {
                 CaptureState.set(CaptureState.STREAMING, "Streaming to helper")
                 updateNotification("Streaming this screen")
             }
+            status.startsWith("error: ") -> {
+                val reason = status.removePrefix("error: ")
+                CaptureState.set(CaptureState.ERROR, "Can’t connect — $reason")
+                updateNotification("Reconnecting… ($reason)")
+            }
             else -> {
-                CaptureState.set(CaptureState.ERROR, "Connection lost — reconnecting")
+                // Clean close (e.g. server restarted) — the streamer auto-retries.
+                CaptureState.set(CaptureState.CONNECTING, "Reconnecting…")
                 updateNotification("Reconnecting…")
             }
         }

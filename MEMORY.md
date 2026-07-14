@@ -5,6 +5,25 @@ Newest first. One entry per work session: what was done, decisions made, and wha
 
 ---
 
+## 2026-07-14 — Diagnose live Render deploy + make phone connection self-explaining
+
+**Tested against the real deployment** (`phone-monitor-yxbo.onrender.com`, creds the owner will rotate):
+- `/health` → `authRequired:true`. Behind Cloudflare + Render.
+- `/app` WS (header token) **connects and holds**: realistic 30fps probe ran **75s / 1877 frames / 3.5 MB, ping-pong RTT ~284ms, zero drops**. So hosting is NOT the cause of "connection lost — reconnecting" — the failure is client-side (wrong address / old APK / token).
+- `/app` with **no token also stayed open** ⇒ **`APP_TOKEN` is currently empty on Render** (phone token isn't being enforced).
+- `/ws?token=0987654321` → **HTTP 401** ⇒ the deployed **`ACCESS_TOKEN` is NOT `0987654321`** (the value the owner gave isn't what's set on Render).
+
+**Done (code):**
+- App `Streamer`: reports the **real failure reason** (`onFailure` reads `response.code` / exception) — 401 wrong token, 404 wrong path, 502/3/4 waking, DNS/Wi-Fi, TLS. `CaptureService` surfaces it ("Can't connect — <reason>"); clean close → "Reconnecting…" not an error.
+- App `Streamer`: also sends the token as **`?token=`** (built via OkHttp `toHttpUrlOrNull().setQueryParameter`, mapped ws↔http) alongside the header — proxy-proof, mirrors `/ws`.
+- Helper `index.ts`: `/app` upgrade accepts token from header **or** `?token=`, rejects bad with **HTTP 401** (was a post-upgrade 1008 close, invisible to the app). Added a **30s ping keepalive** on both WSS that terminates pong-less sockets. `WifiAppSource` re-checks both as defense.
+
+**Verified locally** (helper with `APP_TOKEN=54321`, `ACCESS_TOKEN=0987654321`): header/query token → OPEN; wrong/absent → HTTP 401; `/ws` correct → devices, wrong → 401; full e2e — a query-token `/app` phone registered a real device + video frames reached a `/ws` dashboard client. helper+web build clean.
+
+**Owner action (config, not code):** on Render set `APP_TOKEN`=54321 and `ACCESS_TOKEN`=<what you type in the browser>, plus `MOCK=0`; redeploy. Right now APP_TOKEN is empty (any/blank phone token connects) and the browser password is whatever was actually set (not 0987654321). Merged to `main` so Render auto-deploys the helper + a fresh APK is published to `capture-latest`.
+
+---
+
 ## 2026-07-14 — Fix hosted phone connection + app UX (copy URL, clear recent, how-to)
 
 **Reported:** on Render (`phone-monitor-yxbo.onrender.com`, kept awake via UptimeRobot), the capture app never connected — user entered `wss://phone-monitor-yxbo.onrender.com=my app token` and got "Connection lost — reconnecting".

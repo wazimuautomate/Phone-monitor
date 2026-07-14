@@ -3,7 +3,7 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import express from "express";
-import { WebSocketServer } from "ws";
+import { WebSocketServer, type WebSocket } from "ws";
 import { SourceManager } from "./sources/source-manager.js";
 import { MockSource } from "./sources/mock-source.js";
 import { WifiAppSource } from "./sources/wifi-app-source.js";
@@ -40,11 +40,51 @@ server.on("upgrade", (req, socket, head) => {
     }
     browserWss.handleUpgrade(req, socket, head, (ws) => browserWss.emit("connection", ws, req));
   } else if (url.pathname === "/app") {
+    // Accept the phone token from EITHER the x-pm-token header OR a ?token= query
+    // param. Query params survive every proxy; some strip custom headers on the
+    // WebSocket upgrade. Reject with a real 401 so the app can say "wrong token".
+    if (APP_TOKEN) {
+      const provided =
+        (req.headers["x-pm-token"] as string | undefined) ?? url.searchParams.get("token") ?? "";
+      if (provided !== APP_TOKEN) {
+        socket.write("HTTP/1.1 401 Unauthorized\r\n\r\n");
+        socket.destroy();
+        return;
+      }
+    }
     appWss.handleUpgrade(req, socket, head, (ws) => appWss.emit("connection", ws, req));
   } else {
     socket.destroy();
   }
 });
+
+// Keepalive: ping each socket every 30s and drop any that misses a pong, so
+// half-open connections (phone lost Wi-Fi, laptop slept) are cleaned up and the
+// dashboard reflects reality. Clients auto-reply to pings, so healthy ones stay.
+const alive = new WeakMap<WebSocket, boolean>();
+function heartbeat(wss: WebSocketServer): void {
+  wss.on("connection", (ws: WebSocket) => {
+    alive.set(ws, true);
+    ws.on("pong", () => alive.set(ws, true));
+  });
+  const timer = setInterval(() => {
+    for (const ws of wss.clients) {
+      if (alive.get(ws) === false) {
+        ws.terminate();
+        continue;
+      }
+      alive.set(ws, false);
+      try {
+        ws.ping();
+      } catch {
+        /* socket already closing */
+      }
+    }
+  }, 30000);
+  wss.on("close", () => clearInterval(timer));
+}
+heartbeat(browserWss);
+heartbeat(appWss);
 
 const sources = new SourceManager();
 if (process.env.MOCK !== "0") {

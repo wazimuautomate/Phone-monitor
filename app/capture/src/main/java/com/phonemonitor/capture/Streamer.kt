@@ -1,5 +1,6 @@
 package com.phonemonitor.capture
 
+import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.Response
@@ -16,7 +17,7 @@ import java.util.concurrent.TimeUnit
  *   1. a JSON "hello" text frame (device model/version/battery/size)
  *   2. binary frames = [1 byte type: 0=config, 1=key, 2=delta] + H.264 bytes
  *
- * `onStatus` receives "open" | "error" | "closed".
+ * `onStatus` receives "open", "closed", or "error: <human reason>".
  */
 class Streamer(
     private val url: String,
@@ -41,7 +42,7 @@ class Streamer(
     private fun connect() {
         if (stopped) return
         val request = Request.Builder()
-            .url(url)
+            .url(requestUrl())
             .addHeader("x-pm-token", token)
             .build()
         ws = client.newWebSocket(request, object : WebSocketListener() {
@@ -53,7 +54,7 @@ class Streamer(
 
             override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
                 open = false
-                onStatus("error")
+                onStatus("error: ${describeFailure(t, response)}")
                 scheduleReconnect()
             }
 
@@ -63,6 +64,45 @@ class Streamer(
                 scheduleReconnect()
             }
         })
+    }
+
+    /**
+     * ws(s) URL with the token also carried as a ?token= query param — the same
+     * mechanism the dashboard uses. Some proxies strip custom headers on the
+     * WebSocket upgrade, so the header alone can silently fail; the query param
+     * always survives. OkHttp needs an http(s) URL to build one, then we map back.
+     */
+    private fun requestUrl(): String {
+        if (token.isEmpty()) return url
+        val httpish = url.replaceFirst("wss://", "https://").replaceFirst("ws://", "http://")
+        val built = httpish.toHttpUrlOrNull()?.newBuilder()
+            ?.setQueryParameter("token", token)
+            ?.build()
+            ?.toString()
+            ?: return url
+        return built.replaceFirst("https://", "wss://").replaceFirst("http://", "ws://")
+    }
+
+    /** Turns an OkHttp failure into something the user can act on. */
+    private fun describeFailure(t: Throwable, response: Response?): String {
+        response?.let {
+            return when (it.code) {
+                401, 403 -> "wrong token (server said ${it.code})"
+                404 -> "wrong address — check it ends with /app (404)"
+                502, 503, 504 -> "server waking up or down (${it.code}) — retrying"
+                else -> "server said HTTP ${it.code}"
+            }
+        }
+        val msg = t.message ?: t.javaClass.simpleName
+        return when {
+            msg.contains("Unable to resolve host", true) -> "can’t find that address — check it and Wi-Fi"
+            msg.contains("Failed to connect", true) ||
+                msg.contains("timeout", true) -> "can’t reach the server — check address & Wi-Fi"
+            msg.contains("CertPath", true) ||
+                msg.contains("SSL", true) ||
+                msg.contains("trust", true) -> "secure-connection problem — use wss:// (not ws://)"
+            else -> msg
+        }
     }
 
     private fun scheduleReconnect() {
