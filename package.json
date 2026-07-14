@@ -1,6 +1,6 @@
 {
   "name": "phone-monitor",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "private": true,
   "description": "Real-time multi-phone monitoring dashboard: a browser UI + local Node helper that mirror many Android phones on one desktop screen.",
   "type": "module",

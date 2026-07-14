@@ -5,6 +5,10 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this pr
 
 ## [Unreleased]
 
+_Nothing yet — v1.0.0 shipped._
+
+## [1.0.0] — 2026-07-14
+
 ### Added
 - Project scaffold: npm-workspaces monorepo (`helper`, `web`, `app`).
 - Project docs: `CLAUDE.md` (architecture & instructions), `MEMORY.md` (work log), `CHANGELOG.md`, `README.md`.
