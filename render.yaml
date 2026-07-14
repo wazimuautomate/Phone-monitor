@@ -1,18 +1,22 @@
-# Render.com blueprint. New → Blueprint → point at this repo.
+# Render.com blueprint for the Phone Monitor RELAY — the always-on rendezvous
+# that makes remote (out-of-home) access work. New → Blueprint → point at this
+# repo. This deploys ONLY the relay (rootDir: relay), not the whole monorepo.
+#
+# After deploy, copy the service URL (e.g. https://phone-monitor-relay.onrender.com)
+# and use it as the "Relay server" in BOTH the phone app and the desktop app,
+# as wss://phone-monitor-relay.onrender.com. Read the generated RELAY_TOKEN from
+# the Render dashboard and paste it into both apps too. See REMOTE.md.
 services:
   - type: web
-    name: phone-monitor
+    name: phone-monitor-relay
     runtime: node
-    plan: starter # always-on; the free plan sleeps and would drop the phones
+    rootDir: relay
+    plan: starter # always-on. The free plan sleeps when idle and would drop phones.
     buildCommand: npm install && npm run build
     startCommand: npm start
     healthCheckPath: /health
     envVars:
-      - key: MOCK
-        value: "0"
+      - key: RELAY_TOKEN # shared secret — set the SAME value in the phone + desktop apps
+        generateValue: true
       - key: NODE_VERSION
         value: "20"
-      - key: ACCESS_TOKEN # dashboard password — set your own value
-        sync: false
-      - key: APP_TOKEN # phone token — set your own value
-        sync: false

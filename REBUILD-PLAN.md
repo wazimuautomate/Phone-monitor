@@ -157,11 +157,11 @@ Each phase ends **working and demoable**. We prove control **locally first**, th
 - **R1 — LAN control spike (AnyDesk feel, local)** — ✅ **DONE (confirmed on a real phone, 2026-07-15)**
   Add the AccessibilityService to the Agent; wire MediaProjection→H.264 and input over a **direct LAN connection** (reuse current WS transport first). One phone: live screen **+ working tap/swipe/back/home** from the desktop. *Demo: control a phone in the same room.* Note: UI polish deferred by client; several first-real-phone bugs fixed (see CHANGELOG). This is **LAN-only** — remote is R2/R3 (see `CONNECTIVITY.md`).
 
-- **R2 — WebRTC transport** — ⏭ **NEXT (see `CONNECTIVITY.md`)**
-  Replace/augment the LAN WS with WebRTC (media track + input data channel), **still on the LAN** (host-candidate only, no relay yet). Prove the realtime pipeline and simulcast layers. *Demo: same control, now over WebRTC.*
+- **R3 — Remote (relay + pairing)** — ✅ **DONE (built + tested locally, 2026-07-15)**
+  Shipped ahead of R2: a **relay-brokered** remote path (reusing the proven H.264/WebCodecs/control pipeline) instead of native WebRTC. Phone + desktop connect outbound to a hosted relay (`relay/`), pair by a 9-digit code, and stream/control both ways. Desktop: Settings → Remote phones. Android: "Remote access" mode shows the code. Deploy via `render.yaml`/`relay/Dockerfile` (`REMOTE.md`). *Demo: control the phone from outside the house — once the relay is deployed publicly.*
 
-- **R3 — Remote (relay + pairing)**
-  Stand up the signaling + TURN relay; add pairing-by-code. Control a phone **from a different network**. *Demo: the headline feature — control his phone from outside the house.*
+- **R2 — True peer-to-peer WebRTC** — ⏭ **deferred (optimization)**
+  Upgrade the remote path from relay-routed media to **peer-to-peer** WebRTC (media track + input data channel, DTLS end-to-end, TURN only as fallback). Lower latency + media never touches the server. Needs a native WebRTC stack on Android (the reason it's deferred — can't build/test it in this environment yet). The relay already has the pieces to become the signaling server.
 
 - **R4 — Multi-grid at scale**
   N phones, simulcast-driven adaptive thumbnails vs. focused full-res, virtualized grid, capability/quality badges, auto-reconnect. *Demo: 6+ phones live and controllable.*
@@ -199,8 +199,11 @@ Each phase ends **working and demoable**. We prove control **locally first**, th
 
 ## 9. Where we are (updated 2026-07-15)
 
-**Done:** R0 (Electron `.exe` + brain) and R1 (LAN view **+** AnyDesk-style control) — **confirmed on a real phone**. UI polish is deliberately deferred; the focus is logic robustness.
+**Done:** R0 (Electron `.exe` + brain), R1 (LAN view **+** AnyDesk-style control, **confirmed on a real phone**), and R3 (**remote access** via a relay + pairing codes — built and tested locally). Two connection methods now exist: **local** (same Wi-Fi, lowest latency) and **remote** (anywhere, via the relay). UI polish is deliberately deferred; the focus is logic robustness.
 
-**Current limitation:** connection is **LAN-only** (the connect link is a private `192.168.x.x` address). See **`CONNECTIVITY.md`** for the full explanation and the remote plan.
+**One infra step to make remote live:** the relay must be deployed on a public host (Render blueprint / Docker — see **`REMOTE.md`**). Until then remote is inert; local works with nothing.
 
-**Next milestone — R2/R3, remote access:** one adaptive path = WebRTC (LAN-direct → P2P internet → TURN fallback) brokered by the thin `relay/` + pairing codes. Open decision for the client: build the proper WebRTC path, or ship a quick **cloud dumb-relay** interim first (works anywhere immediately, but routes all video through the server). No decision made yet.
+**Next options (client's call):**
+- **R2 — true P2P WebRTC** — take media off the relay for lower latency + end-to-end privacy (needs native Android WebRTC).
+- **UI pass** — the deferred "make it beautiful" milestone (R7).
+- **R5 — ADB turbo**, **R4 — scale**, **R8 — Controller app**, or hardening (relay auth/accounts).

@@ -5,6 +5,16 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this pr
 
 ## [Unreleased]
 
+### Remote access (out-of-home) — connect from any network
+
+A second connection method alongside the local (same-Wi-Fi) one: control a phone from a different network / city / country, AnyDesk-style, brokered by a hosted relay and paired with a 9-digit code.
+
+- **Relay server** (`relay/`): rebuilt from the WebRTC-signaling scaffold into an **agent↔viewer forwarding relay**. Phone and desktop each connect *outbound* (works through any NAT), get paired by a code, and it forwards H.264 + control both ways. It reclaims a phone's code across reconnects and replays the last `hello` + H.264 config frame so a late-joining desktop can register and decode immediately. Optional `RELAY_TOKEN` gate. Verified end-to-end locally with a simulated phone (code assigned, tile registered, video flowed, control reached the phone).
+- **Desktop `RelaySource`**: a remote phone joins the *exact same* pipeline as a LAN phone — it appears as a normal tile (connection `internet-app`) and works with the existing focused control view. Managed from **Settings → Remote phones** (relay URL + optional token + connect-by-code + list), and saved phones auto-reconnect after a restart. `remove` on a remote tile disconnects it.
+- **Android Remote mode**: alongside the untouched local flow, a "Remote access (anywhere)" section connects to the relay's `/agent`, shows the assigned pairing code as `916 429 577`, and keeps the code stable across reconnects. Streaming + control are identical to local.
+- **Deploy**: `render.yaml` (Render blueprint, relay only), `relay/Dockerfile`, and **`REMOTE.md`** (deploy + pairing + security guide, incl. a zero-hosting local-tunnel option). CI now typechecks the relay.
+- **Honest scope:** relay-routed media is encrypted in transit (wss) but passes *through* the relay — not end-to-end. True peer-to-peer WebRTC (media off the server) remains a later latency/privacy optimization.
+
 ### v2 — Desktop app + AnyDesk-style remote control (in progress)
 
 The project pivoted from a hosted browser dashboard to an **installable desktop app** with real **remote control** of phones. See `REBUILD-PLAN.md` for the full plan.

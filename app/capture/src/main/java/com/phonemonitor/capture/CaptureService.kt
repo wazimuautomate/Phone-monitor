@@ -39,6 +39,7 @@ class CaptureService : Service() {
         const val EXTRA_RESULT_DATA = "resultData"
         const val EXTRA_HELPER_URL = "helperUrl"
         const val EXTRA_TOKEN = "token"
+        const val EXTRA_REMOTE = "remote"
         const val EXTRA_WIDTH = "width"
         const val EXTRA_HEIGHT = "height"
         const val EXTRA_DPI = "dpi"
@@ -59,6 +60,11 @@ class CaptureService : Service() {
 
     @Volatile private var running = false
     @Volatile private var firstFrameSent = false
+
+    // Remote mode = connected outbound through the hosted relay (AnyDesk-style),
+    // vs. local mode = direct to the desktop helper on the LAN. Streaming is
+    // identical either way; this only shapes the status wording.
+    @Volatile private var remote = false
 
     // True once the socket has opened at least once this session. After that,
     // a dropped connection is a transient blip ("Reconnecting…"), NOT a "can't
@@ -102,6 +108,7 @@ class CaptureService : Service() {
         val data = intent.getParcelableExtraCompat<Intent>(EXTRA_RESULT_DATA)
         val helperUrl = intent.getStringExtra(EXTRA_HELPER_URL).orEmpty()
         val token = intent.getStringExtra(EXTRA_TOKEN).orEmpty()
+        remote = intent.getBooleanExtra(EXTRA_REMOTE, false)
         val screenW = intent.getIntExtra(EXTRA_WIDTH, 1080)
         val screenH = intent.getIntExtra(EXTRA_HEIGHT, 1920)
         val dpi = intent.getIntExtra(EXTRA_DPI, 320)
@@ -131,7 +138,7 @@ class CaptureService : Service() {
         }, null)
 
         val (w, h) = scale(screenW, screenH, MAX_DIM)
-        CaptureState.set(CaptureState.CONNECTING, "Connecting to helper…")
+        CaptureState.set(CaptureState.CONNECTING, "Connecting to ${peer()}…")
         streamer = Streamer(
             helperUrl,
             token,
@@ -147,17 +154,30 @@ class CaptureService : Service() {
     }
 
     /**
-     * Handle a text frame from the desktop. We only act on remote-control
-     * commands: {"type":"control","cmd":{"action":…}}. Anything malformed or
-     * unrecognised is ignored so a bad message can't crash the stream.
+     * Handle a text frame from the desktop/relay.
+     *  - {"type":"control","cmd":{"action":…}} → forward to the accessibility service.
+     *  - {"type":"welcome","code":"916429577"} → the relay's assigned remote code;
+     *    save it (so we can reclaim the SAME code next time) and surface it to the UI.
+     * Anything malformed or unrecognised is ignored so a bad message can't crash the stream.
      */
     private fun onControlMessage(text: String) {
         runCatching {
             val obj = JSONObject(text)
-            if (obj.optString("type") != "control") return
-            val cmd = obj.optJSONObject("cmd") ?: return
-            val control = Control.from(cmd) ?: return
-            ControlService.instance?.perform(control)
+            when (obj.optString("type")) {
+                "control" -> {
+                    val cmd = obj.optJSONObject("cmd") ?: return
+                    val control = Control.from(cmd) ?: return
+                    ControlService.instance?.perform(control)
+                }
+                "welcome" -> {
+                    val code = obj.optString("code")
+                    if (code.isNotEmpty()) {
+                        getSharedPreferences("pm", MODE_PRIVATE)
+                            .edit().putString("remoteCode", code).apply()
+                        CaptureState.setCode(code)
+                    }
+                }
+            }
         }
     }
 
@@ -165,7 +185,7 @@ class CaptureService : Service() {
         when {
             status == "open" -> {
                 everConnected = true
-                CaptureState.set(CaptureState.STREAMING, "Streaming to helper")
+                CaptureState.set(CaptureState.STREAMING, "Streaming to ${peer()}")
                 updateNotification("Streaming this screen")
             }
             status.startsWith("error: ") -> {
@@ -193,9 +213,12 @@ class CaptureService : Service() {
     /** Definitive "we're live" signal: the first encoded frame reached the socket. */
     private fun onFirstFrame() {
         everConnected = true
-        CaptureState.set(CaptureState.STREAMING, "Streaming to helper")
+        CaptureState.set(CaptureState.STREAMING, "Streaming to ${peer()}")
         updateNotification("Streaming this screen")
     }
+
+    /** How we word the peer in status text: the hosted relay vs. the local helper. */
+    private fun peer(): String = if (remote) "relay" else "helper"
 
     private fun startEncoder(w: Int, h: Int, dpi: Int) {
         val format = MediaFormat.createVideoFormat(MediaFormat.MIMETYPE_VIDEO_AVC, w, h).apply {

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { connectHub, type ControlCmd, type Hub, type HubMessage } from "./lib/ws";
-import type { Device, ServerInfo } from "./types";
+import type { Device, RemotePhone, ServerInfo } from "./types";
 import { getTheme, setTheme, type Theme } from "./lib/theme";
 import { loadJSON, saveJSON } from "./lib/persist";
 import { Header } from "./components/Header";
@@ -31,6 +31,11 @@ export function App() {
   const [hidden, setHidden] = useState<string[]>(() => loadJSON("pm.hidden", []));
   const [order, setOrder] = useState<string[]>(() => loadJSON("pm.order", []));
   const [columns, setColumns] = useState<number>(() => loadJSON("pm.columns", 0));
+
+  // Remote phones (out-of-home): a global relay URL/token + the codes the user added.
+  const [relayUrl, setRelayUrl] = useState<string>(() => loadJSON("pm.relayUrl", ""));
+  const [relayToken, setRelayToken] = useState<string>(() => loadJSON("pm.relayToken", ""));
+  const [remotePhones, setRemotePhones] = useState<RemotePhone[]>(() => loadJSON("pm.remotePhones", []));
 
   const [reorderMode, setReorderMode] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -174,6 +179,9 @@ export function App() {
   useEffect(() => saveJSON("pm.hidden", hidden), [hidden]);
   useEffect(() => saveJSON("pm.order", order), [order]);
   useEffect(() => saveJSON("pm.columns", columns), [columns]);
+  useEffect(() => saveJSON("pm.relayUrl", relayUrl), [relayUrl]);
+  useEffect(() => saveJSON("pm.relayToken", relayToken), [relayToken]);
+  useEffect(() => saveJSON("pm.remotePhones", remotePhones), [remotePhones]);
 
   const exitImmersive = useCallback(() => {
     setImmersive(false);
@@ -234,6 +242,30 @@ export function App() {
     (deviceId: string, cmd: ControlCmd) => hubRef.current?.sendControl(deviceId, cmd),
     [],
   );
+
+  // ----- Remote phones (out-of-home) -----
+  const addRemotePhone = (raw: string) => {
+    const code = raw.replace(/\s+/g, "");
+    if (!code) return;
+    setRemotePhones((prev) => (prev.some((p) => p.code === code) ? prev : [...prev, { code }]));
+    if (relayUrl.trim()) {
+      send({ type: "relay-connect", relayUrl: relayUrl.trim(), code, token: relayToken || undefined });
+    }
+  };
+  const removeRemotePhone = (code: string) => {
+    setRemotePhones((prev) => prev.filter((p) => p.code !== code));
+    send({ type: "relay-disconnect", code });
+  };
+
+  // Auto-(re)connect saved remote phones whenever the hub is up and a relay URL exists.
+  // Fires on reconnect (app restart / reload) and when the URL or list changes.
+  useEffect(() => {
+    const base = relayUrl.trim();
+    if (!connected || !base) return;
+    for (const p of remotePhones) {
+      hubRef.current?.send({ type: "relay-connect", relayUrl: base, code: p.code, token: relayToken || undefined });
+    }
+  }, [connected, relayUrl, relayToken, remotePhones]);
 
   // Close the focused control view if its device goes away.
   const focusedDevice = focusedId ? devices[focusedId] : undefined;
@@ -311,6 +343,13 @@ export function App() {
             onRemoveDemo={() => send({ type: "mock-remove" })}
             appUrls={connectUrls}
             tokenRequired={serverInfo.tokenRequired}
+            relayUrl={relayUrl}
+            relayToken={relayToken}
+            remotePhones={remotePhones}
+            onRelayUrl={setRelayUrl}
+            onRelayToken={setRelayToken}
+            onAddRemote={addRemotePhone}
+            onRemoveRemote={removeRemotePhone}
           />
         )}
       </div>
@@ -330,6 +369,9 @@ export function App() {
                 <p className="empty-lead">Finding this PC’s Wi-Fi address…</p>
               )}
               {serverInfo.tokenRequired && <p className="empty-note">Then enter the pairing token.</p>}
+              <p className="empty-note">
+                Far from your phone? Open <strong>Settings → Remote phones</strong> to connect by code.
+              </p>
               <button className="empty-demo" onClick={() => send({ type: "mock-add" })}>
                 Or add a demo phone
               </button>

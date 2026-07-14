@@ -8,6 +8,18 @@
     <string name="helper_hint">Helper address (wss://…/app)</string>
     <string name="helper_help">Paste the address from the dashboard’s “Connect app to”. Hosted links start with wss:// and end with /app.</string>
     <string name="token_hint">Phone token</string>
+    <string name="start_local">Start capturing</string>
+    <string name="local_section_title">Local (same Wi-Fi)</string>
+
+    <string name="relay_section_title">Remote access (anywhere)</string>
+    <string name="relay_explain">Reach this phone from anywhere through your hosted relay — no shared Wi-Fi needed. You get a code to type on the desktop.</string>
+    <string name="relay_hint">Relay server (wss://your-relay.onrender.com)</string>
+    <string name="relay_help">Your relay address. Bare hosts default to wss://. The app connects to it and shows your code below.</string>
+    <string name="relay_token_hint">Relay token (optional)</string>
+    <string name="start_remote">Start remote</string>
+    <string name="relay_need_addr">Enter the relay address</string>
+    <string name="remote_code_label">Your remote code — enter this on the desktop</string>
+    <string name="remote_code_placeholder">— — —</string>
 
     <string name="recent_label">Recent — tap to connect, long-press to remove</string>
     <string name="clear_recent">Clear</string>

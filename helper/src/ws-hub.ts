@@ -20,7 +20,9 @@ export function attachHub(wss: WebSocketServer, sources: SourceManager, info: Se
     const off = sources.onEvent((event) => forward(ws, event));
     ws.on("close", off);
     ws.on("message", (raw) => {
-      let msg: { type?: string; deviceId?: string; cmd?: ControlCmd } | undefined;
+      let msg:
+        | { type?: string; deviceId?: string; cmd?: ControlCmd; relayUrl?: string; code?: string; token?: string }
+        | undefined;
       try {
         msg = JSON.parse(raw.toString());
       } catch {
@@ -42,6 +44,15 @@ export function attachHub(wss: WebSocketServer, sources: SourceManager, info: Se
         case "control":
           // Remote control (tap/swipe/keys/text) — route to the owning source.
           if (typeof msg.deviceId === "string" && msg.cmd) sources.sendControl(msg.deviceId, msg.cmd);
+          break;
+        case "relay-connect":
+          // Start watching a remote phone (out-of-home) by pairing code via the relay.
+          if (typeof msg.relayUrl === "string" && typeof msg.code === "string") {
+            void sources.addRelay(msg.relayUrl, msg.code, typeof msg.token === "string" ? msg.token : undefined);
+          }
+          break;
+        case "relay-disconnect":
+          if (typeof msg.code === "string") sources.removeRelay(msg.code);
           break;
       }
     });

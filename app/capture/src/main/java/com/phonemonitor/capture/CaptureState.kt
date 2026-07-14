@@ -12,11 +12,22 @@ object CaptureState {
     var message: String = "Idle"
         private set
 
+    // The remote-access code the relay assigned this phone (empty until assigned).
+    // Kept on its own channel so the existing status listener signature is untouched.
+    var code: String = ""
+        private set
+
     var listener: ((Int, String) -> Unit)? = null
+    var codeListener: ((String) -> Unit)? = null
 
     fun set(newState: Int, msg: String) {
         state = newState
         message = msg
         listener?.invoke(newState, msg)
+    }
+
+    fun setCode(newCode: String) {
+        code = newCode
+        codeListener?.invoke(newCode)
     }
 }

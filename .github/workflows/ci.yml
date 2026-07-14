@@ -23,4 +23,5 @@ jobs:
       - run: npm ci
       - run: npm run typecheck -w helper
       - run: npm run typecheck -w web
+      - run: npm run typecheck -w relay
       - run: npm run build

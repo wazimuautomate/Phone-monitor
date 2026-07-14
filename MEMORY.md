@@ -5,6 +5,24 @@ Newest first. One entry per work session: what was done, decisions made, and wha
 
 ---
 
+## 2026-07-15 — Remote access (out-of-home) implemented: relay + pairing codes
+
+Client asked for TWO connection methods: the existing LAN one **and** AnyDesk-style remote (control a phone from another city). Built the remote path **relay-brokered**, reusing the entire H.264 → WebCodecs → control pipeline:
+
+- **`relay/`** rebuilt from the signaling scaffold into an **agent↔viewer forwarding relay**: pairs a phone (`/agent`) and a desktop (`/viewer?code=`) by a 9-digit code, forwards video + control, reclaims a phone's code across reconnects, and replays the cached `hello` + H.264 config so a late-joining viewer registers/decodes at once. Optional `RELAY_TOKEN`. **Verified end-to-end locally** with a simulated phone (code assigned, tile registered, 8 video frames relayed, a tap reached the phone).
+- **helper `RelaySource`** (viewer client) → a remote phone appears as a normal `internet-app` tile. `SourceManager.addRelay/removeRelay/relayCodes`; `ws-hub` handles `relay-connect`/`relay-disconnect`; `remove` on a `relay-<code>` tile disconnects it.
+- **web**: Settings → Remote phones (relay URL + optional token + connect-by-code + list; auto-reconnect saved phones on hub open). localStorage `pm.relayUrl` / `pm.relayToken` / `pm.remotePhones`.
+- **android**: "Remote access" mode — `normalizeRelayBase` (never appends `/app`), connects to `<base>/agent?code=<saved>`, handles `{type:"welcome",code}` → prefs `remoteCode` + `CaptureState.code` → displays `916 429 577`. Local mode untouched; `CaptureService.remote` flag + `EXTRA_REMOTE`.
+- **deploy**: `render.yaml` (relay only, `rootDir: relay`), `relay/Dockerfile`, `REMOTE.md`; `ci.yml` typechecks relay.
+
+Shipped `PhoneMonitor-2.1.0-portable.exe` + rebuilt `phone-monitor.apk` (CI).
+
+**Protocol** (agent↔relay↔viewer): agent → `/agent` → relay `{type:"welcome",code}`; then agent streams `hello`/`status`/binary `[type+H.264]`, receives `{type:"control",cmd}`. viewer → `/viewer?code=` → relay `{type:"linked"|"waiting"}`, receives forwarded agent frames, sends `control`. Relay control-plane types: welcome/linked/waiting/agent-left/error.
+
+**Honest scope / next:** media flows THROUGH the relay (wss encrypted in transit, NOT end-to-end). True WebRTC P2P (media off the server) deferred — needs a native WebRTC stack on Android. **Remote is inert until the relay is deployed publicly** (Render blueprint) — the one infra step the owner does, like the v1 Render deploy. This is the R3 (relay+pairing) approach; R2 (WebRTC transport) is now reframed as a later optimization.
+
+---
+
 ## 2026-07-15 — v2 fixes CONFIRMED on a real phone; connectivity Q&A
 
 **Client tested the fixed build on a real Samsung SM-A055F — LAN view + AnyDesk-style control work, and all four reported bugs are fixed:**

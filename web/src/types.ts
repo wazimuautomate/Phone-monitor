@@ -22,3 +22,9 @@ export interface ServerInfo {
   appUrls: string[];
   tokenRequired: boolean;
 }
+
+// A far-away phone paired through the relay by its 9-digit code (AnyDesk-style).
+export interface RemotePhone {
+  code: string;
+  label?: string;
+}
