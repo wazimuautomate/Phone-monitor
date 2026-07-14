@@ -14,6 +14,7 @@ export interface Device {
   charging?: boolean;
   fps?: number;
   lastUpdate?: number;
+  screenLocked?: boolean;
   group?: string;
 }
 

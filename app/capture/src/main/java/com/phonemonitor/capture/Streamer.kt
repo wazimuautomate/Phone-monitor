@@ -83,6 +83,12 @@ class Streamer(
         socket.send(ByteString.of(*out))
     }
 
+    /** Send a JSON status text frame (e.g. screen lock changes). */
+    fun sendStatus(json: String) {
+        val socket = ws ?: return
+        if (open) socket.send(json)
+    }
+
     fun stop() {
         stopped = true
         open = false

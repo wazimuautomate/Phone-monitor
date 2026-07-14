@@ -5,6 +5,24 @@ Newest first. One entry per work session: what was done, decisions made, and wha
 
 ---
 
+## 2026-07-14 — v1 finish: Alerts + settings layout fix
+
+**Done (feature):**
+- **Alerts** — toast notifications (top-right, auto-dismiss, color-coded):
+  - **New device** (green): a device connects after initial load (app connect / add demo).
+  - **Disconnect** (red): a device drops unexpectedly. Helper tags `removed` with `reason` = `user` vs `disconnect`; user Remove / Remove-demo stay silent.
+  - **Low battery** (yellow): battery ≤ 20% (once per crossing, reset > 23%).
+  - **Screen lock** (yellow): app reports SCREEN_OFF / USER_PRESENT → helper `screenLocked` stat → toast.
+- **Settings drawer** relaid out **horizontally** (single flex bar). **Columns** is now **Auto + a free number field**; removed the 1–6 preset buttons.
+- Helper: `removed` carries `reason`; `WifiAppSource` handles `{type:"status",screenLocked}`; `DeviceInfo.screenLocked` added.
+- Mobile: `CaptureService` registers a screen on/off receiver → `Streamer.sendStatus`; hello includes `screenLocked:false`.
+
+**Verified** — helper + web build clean; WS test PASS (app device + `screenLocked` stat + disconnect `reason`). Toast rendering build-verified; mobile via CI.
+
+**Next** — user tests v1 (redesigned dashboard + new APK); then merge the whole pass to `main`.
+
+---
+
 ## 2026-07-14 — Enhancement pass A: mobile app redesign
 
 **Done (feature):**

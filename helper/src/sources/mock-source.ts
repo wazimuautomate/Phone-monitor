@@ -62,7 +62,7 @@ export class MockSource implements DeviceSource {
 
   remove(id: string): boolean {
     if (this.devicesById.delete(id)) {
-      this.emit?.({ kind: "removed", deviceId: id });
+      this.emit?.({ kind: "removed", deviceId: id, reason: "user" });
       return true;
     }
     return false;

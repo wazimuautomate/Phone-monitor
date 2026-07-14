@@ -4,8 +4,10 @@ import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.Service
+import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.content.pm.ServiceInfo
 import android.hardware.display.DisplayManager
 import android.hardware.display.VirtualDisplay
@@ -19,6 +21,7 @@ import android.os.Build
 import android.os.IBinder
 import android.os.PowerManager
 import android.view.Surface
+import androidx.core.content.ContextCompat
 import java.nio.ByteBuffer
 import kotlin.concurrent.thread
 
@@ -53,6 +56,28 @@ class CaptureService : Service() {
     private var wakeLock: PowerManager.WakeLock? = null
 
     @Volatile private var running = false
+
+    private var receiverRegistered = false
+    private val screenReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            when (intent?.action) {
+                Intent.ACTION_SCREEN_OFF ->
+                    streamer?.sendStatus("""{"type":"status","screenLocked":true}""")
+                Intent.ACTION_USER_PRESENT ->
+                    streamer?.sendStatus("""{"type":"status","screenLocked":false}""")
+            }
+        }
+    }
+
+    override fun onCreate() {
+        super.onCreate()
+        val filter = IntentFilter().apply {
+            addAction(Intent.ACTION_SCREEN_OFF)
+            addAction(Intent.ACTION_USER_PRESENT)
+        }
+        ContextCompat.registerReceiver(this, screenReceiver, filter, ContextCompat.RECEIVER_NOT_EXPORTED)
+        receiverRegistered = true
+    }
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -170,7 +195,7 @@ class CaptureService : Service() {
             """"model":${jsonStr(Build.MODEL)},""" +
             """"manufacturer":${jsonStr(Build.MANUFACTURER)},""" +
             """"androidVersion":${jsonStr(Build.VERSION.RELEASE)},""" +
-            """"width":$w,"height":$h,"battery":${batteryPercent()}}"""
+            """"width":$w,"height":$h,"battery":${batteryPercent()},"screenLocked":false}"""
 
     private fun batteryPercent(): Int {
         val bm = getSystemService(Context.BATTERY_SERVICE) as BatteryManager
@@ -231,6 +256,10 @@ class CaptureService : Service() {
     }
 
     override fun onDestroy() {
+        if (receiverRegistered) {
+            runCatching { unregisterReceiver(screenReceiver) }
+            receiverRegistered = false
+        }
         stopCapture()
         super.onDestroy()
     }

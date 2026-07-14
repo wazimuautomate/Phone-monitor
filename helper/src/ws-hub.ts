@@ -51,7 +51,7 @@ function forward(ws: WebSocket, event: SourceEvent): void {
       send(ws, { type: "device", device: event.info });
       break;
     case "removed":
-      send(ws, { type: "removed", deviceId: event.deviceId });
+      send(ws, { type: "removed", deviceId: event.deviceId, reason: event.reason });
       break;
     case "stats":
       send(ws, { type: "stats", deviceId: event.deviceId, patch: event.patch });

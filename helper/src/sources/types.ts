@@ -21,6 +21,7 @@ export interface DeviceInfo {
   charging?: boolean;
   fps?: number;
   lastUpdate?: number; // epoch ms
+  screenLocked?: boolean;
   group?: string;
 }
 
@@ -34,7 +35,7 @@ export interface VideoPacket {
 
 export type SourceEvent =
   | { kind: "device"; info: DeviceInfo }
-  | { kind: "removed"; deviceId: string }
+  | { kind: "removed"; deviceId: string; reason: "user" | "disconnect" }
   | { kind: "video"; packet: VideoPacket }
   | { kind: "stats"; deviceId: string; patch: Partial<DeviceInfo> };
 

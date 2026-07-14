@@ -8,9 +8,11 @@ let counter = 0;
  * Tier-2 ingest: accepts WebSocket connections from the Android capture app,
  * registers each as a view-only device, and relays its H.264 frames.
  *
- * App protocol: a JSON "hello" text frame, then binary frames
- *   [1 byte type: 0=config, 1=key, 2=delta] + H.264 (Annex B).
- * One socket == one device (identified by the connection).
+ * App protocol:
+ *   - text "hello"  {type:"hello", model, androidVersion, battery, width, height}
+ *   - text "status" {type:"status", screenLocked}
+ *   - binary frames [1 byte type: 0=config,1=key,2=delta] + H.264 (Annex B)
+ * One socket == one device.
  */
 export class WifiAppSource implements DeviceSource {
   readonly connection: ConnectionType = "wifi-app";
@@ -41,7 +43,7 @@ export class WifiAppSource implements DeviceSource {
     ws.on("message", (data: RawData, isBinary: boolean) => {
       const buf = toBuffer(data);
       if (!isBinary) {
-        if (this.register(id, buf.toString())) registered = true;
+        if (this.handleText(id, buf.toString())) registered = true;
         return;
       }
       if (!registered || buf.length < 1) return;
@@ -56,7 +58,7 @@ export class WifiAppSource implements DeviceSource {
 
     ws.on("close", () => {
       this.sockets.delete(id);
-      if (this.devices.delete(id)) this.emit?.({ kind: "removed", deviceId: id });
+      if (this.devices.delete(id)) this.emit?.({ kind: "removed", deviceId: id, reason: "disconnect" });
     });
     ws.on("error", () => ws.close());
   }
@@ -67,35 +69,53 @@ export class WifiAppSource implements DeviceSource {
     if (ws) ws.close(1000, "removed by user");
     this.sockets.delete(id);
     if (this.devices.delete(id)) {
-      this.emit?.({ kind: "removed", deviceId: id });
+      this.emit?.({ kind: "removed", deviceId: id, reason: "user" });
       return true;
     }
     return !!ws;
   }
 
-  private register(id: string, raw: string): boolean {
-    let hello: Record<string, unknown>;
+  /** Returns true if this text frame registered a new device. */
+  private handleText(id: string, raw: string): boolean {
+    let msg: Record<string, unknown>;
     try {
-      hello = JSON.parse(raw);
+      msg = JSON.parse(raw);
     } catch {
       return false;
     }
-    if (hello.type !== "hello") return false;
-    const info: DeviceInfo = {
-      id,
-      name: (hello.model as string) || "Phone",
-      model: hello.model as string | undefined,
-      androidVersion: hello.androidVersion as string | undefined,
-      battery: typeof hello.battery === "number" ? hello.battery : undefined,
-      tier: "view",
-      connection: "wifi-app",
-      status: "online",
-      fps: 0,
-      lastUpdate: Date.now(),
-    };
-    this.devices.set(id, info);
-    this.emit?.({ kind: "device", info });
-    return true;
+
+    if (msg.type === "hello") {
+      const info: DeviceInfo = {
+        id,
+        name: (msg.model as string) || "Phone",
+        model: msg.model as string | undefined,
+        androidVersion: msg.androidVersion as string | undefined,
+        battery: typeof msg.battery === "number" ? msg.battery : undefined,
+        tier: "view",
+        connection: "wifi-app",
+        status: "online",
+        fps: 0,
+        screenLocked: msg.screenLocked === true,
+        lastUpdate: Date.now(),
+      };
+      this.devices.set(id, info);
+      this.emit?.({ kind: "device", info });
+      return true;
+    }
+
+    if (msg.type === "status") {
+      const dev = this.devices.get(id);
+      if (dev && typeof msg.screenLocked === "boolean") {
+        dev.screenLocked = msg.screenLocked;
+        dev.lastUpdate = Date.now();
+        this.emit?.({
+          kind: "stats",
+          deviceId: id,
+          patch: { screenLocked: msg.screenLocked, lastUpdate: dev.lastUpdate },
+        });
+      }
+    }
+    return false;
   }
 
   list(): DeviceInfo[] {

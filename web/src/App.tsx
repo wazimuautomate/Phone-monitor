@@ -9,6 +9,8 @@ import { SettingsDrawer } from "./components/SettingsDrawer";
 import { StatusBar } from "./components/StatusBar";
 import { HiddenTray } from "./components/HiddenTray";
 import { IconClose } from "./lib/icons";
+import { AlertToasts } from "./components/AlertToasts";
+import type { Alert, AlertSeverity, AlertType } from "./lib/alerts";
 import "./styles.css";
 
 export function App() {
@@ -30,11 +32,98 @@ export function App() {
 
   const hubRef = useRef<Hub | null>(null);
 
+  const [alerts, setAlerts] = useState<Alert[]>([]);
+  const devicesRef = useRef(devices);
+  const nicknamesRef = useRef(nicknames);
+  const alertMeta = useRef({ initialized: false, low: new Set<string>(), locked: new Set<string>() });
+  const alertSeq = useRef(0);
+
+  useEffect(() => {
+    devicesRef.current = devices;
+  }, [devices]);
+  useEffect(() => {
+    nicknamesRef.current = nicknames;
+  }, [nicknames]);
+
+  const pushAlert = useCallback(
+    (type: AlertType, title: string, detail: string, severity: AlertSeverity) => {
+      const id = `al-${++alertSeq.current}`;
+      setAlerts((prev) =>
+        [...prev.filter((a) => !(a.type === type && a.detail === detail)), { id, type, title, detail, severity }].slice(-5),
+      );
+      window.setTimeout(() => setAlerts((prev) => prev.filter((a) => a.id !== id)), 6000);
+    },
+    [],
+  );
+
+  const dismissAlert = useCallback((id: string) => {
+    setAlerts((prev) => prev.filter((a) => a.id !== id));
+  }, []);
+
+  const handleAlerts = useCallback(
+    (msg: HubMessage) => {
+      const meta = alertMeta.current;
+      const label = (id: string, name: string) => nicknamesRef.current[id] ?? name;
+      const LOW = 20;
+      switch (msg.type) {
+        case "devices": {
+          meta.low.clear();
+          meta.locked.clear();
+          for (const d of msg.devices) {
+            if ((d.battery ?? 100) <= LOW) meta.low.add(d.id);
+            if (d.screenLocked) meta.locked.add(d.id);
+          }
+          meta.initialized = true;
+          break;
+        }
+        case "device": {
+          if (meta.initialized) {
+            pushAlert("new-device", "New device", `${label(msg.device.id, msg.device.name)} connected`, "ok");
+          }
+          break;
+        }
+        case "removed": {
+          if (msg.reason !== "user") {
+            const dev = devicesRef.current[msg.deviceId];
+            pushAlert("disconnect", "Device disconnected", `${dev ? label(dev.id, dev.name) : "A device"} lost connection`, "danger");
+          }
+          meta.low.delete(msg.deviceId);
+          meta.locked.delete(msg.deviceId);
+          break;
+        }
+        case "stats": {
+          const dev = devicesRef.current[msg.deviceId];
+          const name = dev ? label(dev.id, dev.name) : "Device";
+          const { battery, screenLocked } = msg.patch;
+          if (typeof battery === "number") {
+            if (battery <= LOW && !meta.low.has(msg.deviceId)) {
+              meta.low.add(msg.deviceId);
+              pushAlert("low-battery", "Low battery", `${name} at ${battery}%`, "warn");
+            } else if (battery > LOW + 3) {
+              meta.low.delete(msg.deviceId);
+            }
+          }
+          if (typeof screenLocked === "boolean") {
+            if (screenLocked && !meta.locked.has(msg.deviceId)) {
+              meta.locked.add(msg.deviceId);
+              pushAlert("screen-lock", "Screen locked", `${name} screen locked`, "warn");
+            } else if (!screenLocked) {
+              meta.locked.delete(msg.deviceId);
+            }
+          }
+          break;
+        }
+      }
+    },
+    [pushAlert],
+  );
+
   useEffect(() => {
     const hub = connectHub({
       onOpen: () => setConnected(true),
       onClose: () => setConnected(false),
       onMessage: (msg: HubMessage) => {
+        handleAlerts(msg);
         if (msg.type === "server-info") {
           setServerInfo({ appUrls: msg.appUrls, tokenRequired: msg.tokenRequired });
         } else {
@@ -44,7 +133,7 @@ export function App() {
     });
     hubRef.current = hub;
     return () => hub.close();
-  }, []);
+  }, [handleAlerts]);
 
   useEffect(() => saveJSON("pm.nicknames", nicknames), [nicknames]);
   useEffect(() => saveJSON("pm.hidden", hidden), [hidden]);
@@ -216,6 +305,8 @@ export function App() {
           <IconClose />
         </button>
       )}
+
+      <AlertToasts alerts={alerts} onDismiss={dismissAlert} />
     </div>
   );
 }
