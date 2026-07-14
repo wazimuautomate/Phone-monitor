@@ -32,7 +32,10 @@ async function startHelper() {
   const { createHelper } = require("./build/helper.cjs");
   helper = await createHelper({
     port: PORT,
-    host: "127.0.0.1", // desktop app: bind loopback (phones reach it via the LAN url the helper still advertises)
+    // Bind ALL interfaces so phones on the same Wi-Fi can reach /app. The window
+    // still loads via 127.0.0.1 (loopback is included). Binding loopback-only
+    // would make the advertised LAN url unreachable — phones would time out.
+    host: "0.0.0.0",
     mock: process.env.PM_MOCK !== "0",
     webDir: path.join(__dirname, "build", "web"),
   });

@@ -206,13 +206,26 @@ function heartbeat(wss: WebSocketServer): () => void {
 }
 
 function lanAppUrls(port: number): string[] {
-  const urls: string[] = [];
+  const found: { ip: string; rank: number }[] = [];
   for (const addrs of Object.values(os.networkInterfaces())) {
     for (const a of addrs ?? []) {
-      if (a.family === "IPv4" && !a.internal) urls.push(`ws://${a.address}:${port}/app`);
+      if (a.family !== "IPv4" || a.internal) continue;
+      // Rank real home/office Wi-Fi ranges above virtual adapters (Docker / WSL /
+      // Hyper-V), which a phone on the actual Wi-Fi can't reach — so the address
+      // the dashboard shows first is the one most likely to work.
+      const ip = a.address;
+      const rank = ip.startsWith("192.168.")
+        ? 0
+        : ip.startsWith("10.")
+          ? 1
+          : /^172\.(1[6-9]|2\d|3[01])\./.test(ip)
+            ? 2
+            : 3;
+      found.push({ ip, rank });
     }
   }
-  return urls;
+  found.sort((x, y) => x.rank - y.rank);
+  return found.map((u) => `ws://${u.ip}:${port}/app`);
 }
 
 function defaultWebDir(): string {
