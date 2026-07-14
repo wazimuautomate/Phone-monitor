@@ -1,3 +1,14 @@
 <resources>
     <string name="app_name">Phone Monitor</string>
+
+    <string name="howto_title">How to connect</string>
+    <string name="howto_steps">1.  On your desktop, open the dashboard link.\n2.  In the dashboard, open Settings → “Connect app to” and copy the address (tap it to copy).\n3.  Paste it in “Helper address” below — it looks like wss://your-app.onrender.com/app\n4.  Type the phone token, tap “Start capturing”, then allow screen capture.</string>
+    <string name="howto_hint">Tip: you can paste just the dashboard link (e.g. https://your-app.onrender.com) — the app adds the rest for you.</string>
+
+    <string name="helper_hint">Helper address (wss://…/app)</string>
+    <string name="helper_help">Paste the address from the dashboard’s “Connect app to”. Hosted links start with wss:// and end with /app.</string>
+    <string name="token_hint">Phone token</string>
+
+    <string name="recent_label">Recent — tap to connect, long-press to remove</string>
+    <string name="clear_recent">Clear</string>
 </resources>

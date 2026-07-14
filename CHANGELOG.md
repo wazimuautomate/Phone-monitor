@@ -9,6 +9,12 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this pr
 - **Cloud hosting**: `Dockerfile`, `render.yaml`, and `HOSTING.md` (Railway/Render) so the dashboard runs remotely and phones connect from anywhere over `wss://`.
 - **Dashboard password** (`ACCESS_TOKEN`) with a login screen gating the live connection; `APP_TOKEN` still gates phone streams.
 - Hosted-aware **connect URL**: the dashboard shows `wss://<host>/app` when deployed (LAN address when local).
+- Capture app: **"How to connect" instructions** on the main screen, plus a hint that pasting just the dashboard link works.
+- Capture app: **Clear** button to wipe the recent-connections list (long-press still removes one).
+- Dashboard: connection address is now **click-to-copy** (header, status bar, and Settings → "Connect app to") with a "Copied!" hint.
+
+### Fixed
+- Capture app **could not connect to a hosted helper**: the address the user typed was used verbatim, so a missing `/app` path (or a token pasted onto the URL) made every attempt drop with "Connection lost — reconnecting". The app now **normalizes the address**: adds `wss://` (or `ws://` for LAN), converts `http(s)://`→`ws(s)://`, appends `/app` when no path is given, and strips a stray `=token`/`?…`/space accidentally pasted into the URL. Pasting the plain dashboard link (`https://your-app.onrender.com`) now connects.
 
 ## [1.0.0] — 2026-07-14
 
