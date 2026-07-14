@@ -5,6 +5,21 @@ Newest first. One entry per work session: what was done, decisions made, and wha
 
 ---
 
+## 2026-07-15 — v2 fixes CONFIRMED on a real phone; connectivity Q&A
+
+**Client tested the fixed build on a real Samsung SM-A055F — LAN view + AnyDesk-style control work, and all four reported bugs are fixed:**
+- One phone = one tile — helper keys app devices by the phone's stable ANDROID_ID (now sent in `hello`) and replaces the stale socket on reconnect instead of spawning a phantom placeholder tile. Also guarded a double `onStartCommand` that ran two streamers.
+- No more false "Can't connect" while streaming — Android tracks `everConnected`; after the first open, drops show "Reconnecting…", and "Can't connect — check address" is reserved for a genuine first-connect failure.
+- Accessibility "Enable remote control" card flips to Enabled — detection now uses `AccessibilityManager` (Samsung formats `ENABLED_ACCESSIBILITY_SERVICES` differently) plus both flattened-name forms.
+- Desktop starts blank — `mock` off by default (was on); empty state shows the connect address + an "add demo phone" button. (Earlier same-day fix: the Electron helper had bound loopback-only, so phones couldn't connect at all — now binds 0.0.0.0 and ranks real Wi-Fi IPs above virtual adapters.)
+Shipped: `PhoneMonitor-2.0.1-portable.exe` + rebuilt `phone-monitor.apk` (both verified; APK dex confirmed to contain the new code).
+
+**Direction:** UI is deliberately **deprioritized** — focus is logic robustness. **Remote access is NOT built yet:** the connect link is a private LAN address (192.168/8787), so it only works on the same Wi-Fi.
+
+**Connectivity plan (client asked; recorded in `CONNECTIVITY.md`):** ONE adaptive method = WebRTC + a thin signaling/TURN relay (`relay/` scaffolded). ICE auto-tiers same-LAN → direct P2P internet → TURN fallback, so "same-house different network" and "different country" are the *same* problem — both solved by the one WebRTC path (LAN stays as an optional turbo). Remote pairing shifts from typing an IP to an AnyDesk-style **code**. Interim option if remote is needed fast: host the helper as a cloud dumb-relay (v1 Render approach) — works anywhere but routes all video through the server. Next milestone: build the WebRTC path (`REBUILD-PLAN.md` R2–R3). No decision yet on proper-vs-interim.
+
+---
+
 ## 2026-07-14 — v2 pivot: desktop app + AnyDesk-style remote control (built)
 
 **Scope change** (client, after the v1 demo): from a hosted browser dashboard to an **installable desktop app + phone agent** with real **remote control** (AnyDesk-style), near *and* far; his phones all have Dev Options; UI + realtime are paramount; friends will use it (monetization later — free tier 1 device / accounts later). Full plan in `REBUILD-PLAN.md`. Decisions locked: WebRTC P2P + relay fallback; mobile = agent **and** controller; Electron; standalone v1 (him).

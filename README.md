@@ -70,4 +70,4 @@ npm run dist:desktop
 
 ## Status
 
-Active v2 rebuild. **Working:** desktop app, live mirroring, and LAN remote control (AnyDesk-style). **Next:** WebRTC remote path (relay + pairing), ADB turbo, Controller mobile app. See [CHANGELOG.md](CHANGELOG.md) and [MEMORY.md](MEMORY.md) for detail, [REBUILD-PLAN.md](REBUILD-PLAN.md) for the roadmap.
+Active v2 rebuild. **Working (confirmed on a real phone):** desktop app, live mirroring, and AnyDesk-style control — **over the same Wi-Fi (LAN only)**. UI polish is currently deferred in favour of logic robustness. **Next:** the remote (out-of-home) path — WebRTC + relay + pairing — so it works from any network; see **[CONNECTIVITY.md](CONNECTIVITY.md)**. Then ADB turbo and the Controller mobile app. Detail in [CHANGELOG.md](CHANGELOG.md) / [MEMORY.md](MEMORY.md); roadmap in [REBUILD-PLAN.md](REBUILD-PLAN.md).

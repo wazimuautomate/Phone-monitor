@@ -151,13 +151,13 @@ Recorded so we design without painting ourselves into a corner:
 
 Each phase ends **working and demoable**. We prove control **locally first**, then add remote — so we never block on relay infra to show progress.
 
-- **R0 — Foundations & brain update**
+- **R0 — Foundations & brain update** — ✅ **DONE**
   Update `CLAUDE.md` (§7 reversed decisions, new architecture), `MEMORY.md`, `CHANGELOG.md`. Stand up the Electron shell loading the existing React UI (mock source) → the beautiful dashboard runs as a real `.exe`. *Demo: the app he loved, now installable.*
 
-- **R1 — LAN control spike (AnyDesk feel, local)**
-  Add the AccessibilityService to the Agent; wire MediaProjection→H.264 and input over a **direct LAN connection** (reuse current WS transport first). One phone: live screen **+ working tap/swipe/back/home** from the desktop. *Demo: control a phone in the same room.*
+- **R1 — LAN control spike (AnyDesk feel, local)** — ✅ **DONE (confirmed on a real phone, 2026-07-15)**
+  Add the AccessibilityService to the Agent; wire MediaProjection→H.264 and input over a **direct LAN connection** (reuse current WS transport first). One phone: live screen **+ working tap/swipe/back/home** from the desktop. *Demo: control a phone in the same room.* Note: UI polish deferred by client; several first-real-phone bugs fixed (see CHANGELOG). This is **LAN-only** — remote is R2/R3 (see `CONNECTIVITY.md`).
 
-- **R2 — WebRTC transport**
+- **R2 — WebRTC transport** — ⏭ **NEXT (see `CONNECTIVITY.md`)**
   Replace/augment the LAN WS with WebRTC (media track + input data channel), **still on the LAN** (host-candidate only, no relay yet). Prove the realtime pipeline and simulcast layers. *Demo: same control, now over WebRTC.*
 
 - **R3 — Remote (relay + pairing)**
@@ -197,6 +197,10 @@ Each phase ends **working and demoable**. We prove control **locally first**, th
 
 ---
 
-## 9. Immediate next step
+## 9. Where we are (updated 2026-07-15)
 
-On your go-ahead, **R0**: update the project brain (`CLAUDE.md`/`MEMORY.md`/`CHANGELOG.md`) to the v2 architecture and scaffold the Electron shell around the existing UI — so within the first increment you can double-click a real `.exe` and see the dashboard he already loved. No feature work until the brain reflects this plan.
+**Done:** R0 (Electron `.exe` + brain) and R1 (LAN view **+** AnyDesk-style control) — **confirmed on a real phone**. UI polish is deliberately deferred; the focus is logic robustness.
+
+**Current limitation:** connection is **LAN-only** (the connect link is a private `192.168.x.x` address). See **`CONNECTIVITY.md`** for the full explanation and the remote plan.
+
+**Next milestone — R2/R3, remote access:** one adaptive path = WebRTC (LAN-direct → P2P internet → TURN fallback) brokered by the thin `relay/` + pairing codes. Open decision for the client: build the proper WebRTC path, or ship a quick **cloud dumb-relay** interim first (works anywhere immediately, but routes all video through the server). No decision made yet.

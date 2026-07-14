@@ -24,6 +24,13 @@ The project pivoted from a hosted browser dashboard to an **installable desktop 
 - Monorepo gained `desktop` and `relay` workspaces and root scripts `prepare:desktop` / `start:desktop` / `dist:desktop`.
 - `CLAUDE.md` gained a v2-pivot banner; `README.md` rewritten around the desktop app + agent.
 
+#### Fixed (first real-phone test — Samsung SM-A055F, confirmed working)
+- **Phones couldn't connect to the desktop app at all.** The Electron shell started the helper on `127.0.0.1`, so it never listened on the Wi-Fi interface even though it advertised a `ws://<lan-ip>/app` URL — every phone timed out. It now binds all interfaces, and ranks real LAN ranges (192.168/10) above virtual adapters (Docker/WSL/Hyper-V) so the address shown first is the one a phone can reach.
+- **One phone appeared as two tiles** (one a demo-looking placeholder). The helper assigned a new id per socket, so a reconnect spawned a phantom. Devices are now keyed by the phone's stable `deviceId` (ANDROID_ID, sent in `hello`); a reconnect replaces the old socket and reuses the same tile. Also guarded a double `onStartCommand` that could run two streamers at once.
+- **Phone showed "Can't connect" even while streaming.** OkHttp fires `onFailure` on transient blips too; the app now shows "Reconnecting…" once it has connected, reserving "Can't connect — check address" for a genuine first-connect failure.
+- **"Enable remote control" stayed showing after enabling** (Samsung). Detection now uses `AccessibilityManager` (plus both flattened-name forms) instead of only parsing the `ENABLED_ACCESSIBILITY_SERVICES` string.
+- **Desktop opened full of demo devices.** Demo (`mock`) is now **off** by default (`PM_MOCK=1` to opt in); the dashboard starts blank with an empty state that shows the connect address and an "add demo phone" button.
+
 #### Retired
 - Cloud hosting of the dashboard (Docker/Render/`HOSTING.md`, dashboard-password login) is superseded by the desktop app + peer-to-peer model.
 
