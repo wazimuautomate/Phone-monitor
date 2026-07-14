@@ -22,6 +22,14 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this pr
 - Settings panel: choose grid **columns per row** (Auto/1–6), persisted.
 - Refresh button re-syncs the device list with visual feedback.
 - APK also published to a **GitHub Release** (`capture-latest`) for easy download, not just as a CI artifact.
+- Dashboard redesign: emoji-free **SVG icon set**, brand logo + **favicon**, 5-color palette, and a **light/dark theme** toggle.
+- Per-device **rename** (pen icon), and a per-device menu to **Hide** (with a status-bar tray to restore) or **Remove** (disconnects it).
+- **Immersive fullscreen** mode (hides header + status bar; floating ✕ / Esc to exit).
+- **Settings drawer** (sticky, slides from top): grid columns (Auto=4 / 1–6), **drag-reorder** with green snapping lines, and **add/remove demo devices**.
+- The **capture-app connection URL** (+ token) is shown in the header and status bar via a new `server-info` message — no more hunting in the terminal.
+
+### Changed
+- Removed the Screenshot and Disconnect-All header buttons; removed the Model/Android/Battery card footer to give screens more space.
 
 ### Notes
 - Branch strategy: `feature` (all work) + `main` (tested-working only). APK is built in CI (the dev laptop has no Android Studio).

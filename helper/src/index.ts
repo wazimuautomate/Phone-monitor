@@ -46,14 +46,16 @@ if (process.env.MOCK !== "0") {
 }
 sources.register(new WifiAppSource(appWss, APP_TOKEN)); // Tier-2 capture app ingest
 // Phase 1: sources.register(new WifiAdbSource());
-attachHub(browserWss, sources);
+
+const appUrls = lanAppUrls(PORT);
+attachHub(browserWss, sources, { appUrls, tokenRequired: APP_TOKEN !== "" });
 
 await sources.start();
 
 server.listen(PORT, HOST, () => {
   console.log(`[helper] listening on ${HOST}:${PORT}  (browser: /ws, app: /app)`);
   console.log(`[helper] app token: ${APP_TOKEN ? "required" : "(none — dev mode)"}`);
-  for (const url of lanAppUrls(PORT)) console.log(`[helper] capture app → ${url}`);
+  for (const url of appUrls) console.log(`[helper] capture app → ${url}`);
   console.log(`[helper] ${sources.devices().length} device(s) known`);
 });
 

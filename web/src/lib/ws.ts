@@ -7,7 +7,8 @@ export type HubMessage =
   | { type: "devices"; devices: Device[] }
   | { type: "device"; device: Device }
   | { type: "removed"; deviceId: string }
-  | { type: "stats"; deviceId: string; patch: Partial<Device> };
+  | { type: "stats"; deviceId: string; patch: Partial<Device> }
+  | { type: "server-info"; appUrls: string[]; tokenRequired: boolean };
 
 interface HubHandlers {
   onOpen?: () => void;

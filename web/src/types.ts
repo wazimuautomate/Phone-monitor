@@ -16,3 +16,8 @@ export interface Device {
   lastUpdate?: number;
   group?: string;
 }
+
+export interface ServerInfo {
+  appUrls: string[];
+  tokenRequired: boolean;
+}

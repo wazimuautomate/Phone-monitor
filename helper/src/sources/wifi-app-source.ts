@@ -15,6 +15,7 @@ let counter = 0;
 export class WifiAppSource implements DeviceSource {
   readonly connection: ConnectionType = "wifi-app";
   private readonly devices = new Map<string, DeviceInfo>();
+  private readonly sockets = new Map<string, WebSocket>();
   private emit?: SourceEventHandler;
 
   constructor(
@@ -34,6 +35,7 @@ export class WifiAppSource implements DeviceSource {
     }
 
     const id = `app-${++counter}`;
+    this.sockets.set(id, ws);
     let registered = false;
 
     ws.on("message", (data: RawData, isBinary: boolean) => {
@@ -53,9 +55,22 @@ export class WifiAppSource implements DeviceSource {
     });
 
     ws.on("close", () => {
+      this.sockets.delete(id);
       if (this.devices.delete(id)) this.emit?.({ kind: "removed", deviceId: id });
     });
     ws.on("error", () => ws.close());
+  }
+
+  /** Disconnect a connected app device (user chose "Remove"). */
+  remove(id: string): boolean {
+    const ws = this.sockets.get(id);
+    if (ws) ws.close(1000, "removed by user");
+    this.sockets.delete(id);
+    if (this.devices.delete(id)) {
+      this.emit?.({ kind: "removed", deviceId: id });
+      return true;
+    }
+    return !!ws;
   }
 
   private register(id: string, raw: string): boolean {
@@ -88,6 +103,8 @@ export class WifiAppSource implements DeviceSource {
   }
 
   async stop(): Promise<void> {
+    for (const ws of this.sockets.values()) ws.close(1001, "shutdown");
+    this.sockets.clear();
     this.devices.clear();
   }
 }

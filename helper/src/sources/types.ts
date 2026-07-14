@@ -52,4 +52,6 @@ export interface DeviceSource {
   stop(): Promise<void>;
   /** Currently-known devices from this source. */
   list(): DeviceInfo[];
+  /** Optional: disconnect/remove a device this source owns. Returns true if handled. */
+  remove?(deviceId: string): boolean;
 }

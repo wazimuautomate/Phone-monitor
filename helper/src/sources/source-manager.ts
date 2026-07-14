@@ -1,8 +1,5 @@
-import type {
-  DeviceInfo,
-  DeviceSource,
-  SourceEventHandler,
-} from "./types.js";
+import type { DeviceInfo, DeviceSource, SourceEventHandler } from "./types.js";
+import { MockSource } from "./mock-source.js";
 
 /**
  * Owns every DeviceSource and fans their events out to listeners (the WS hub).
@@ -36,5 +33,25 @@ export class SourceManager {
 
   devices(): DeviceInfo[] {
     return this.sources.flatMap((s) => s.list());
+  }
+
+  /** Remove/disconnect a device, whichever source owns it. */
+  remove(deviceId: string): boolean {
+    for (const s of this.sources) {
+      if (s.remove?.(deviceId)) return true;
+    }
+    return false;
+  }
+
+  addMockDevice(): void {
+    this.mockSource()?.addDevice();
+  }
+
+  removeMockDevice(): void {
+    this.mockSource()?.removeLast();
+  }
+
+  private mockSource(): MockSource | undefined {
+    return this.sources.find((s): s is MockSource => s instanceof MockSource);
   }
 }

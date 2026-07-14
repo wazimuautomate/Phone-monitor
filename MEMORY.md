@@ -5,6 +5,26 @@ Newest first. One entry per work session: what was done, decisions made, and wha
 
 ---
 
+## 2026-07-14 — Enhancement pass A: desktop redesign (real-phone confirmed ✅)
+
+Owner tested Phase 2 on a real locked phone — **it works**. Phase 2 merged to `main` as baseline.
+
+**Desktop redesign (on feature):**
+- Removed all emoji → SVG icon set (`lib/icons.tsx`) + brand Logo + **favicon** (`public/icon.svg`).
+- 5-color palette (#E51219 / #2FA44A / #EFDB16 / #FFF / #000) + **light/dark theme** toggle (`lib/theme.ts`, persisted).
+- Header: icon buttons (Refresh / Theme / Fullscreen / Settings); dropped Screenshot + Disconnect All; shows the **capture-app connection URL** (+token tag) from the new `server-info` message.
+- Cards: removed Model/Android/Battery footer, slimmed to maximize screen; **rename via pen** (persisted nickname); per-device **menu → Hide / Remove**.
+- **Immersive fullscreen**: hides header + status bar; floating ✕ / Esc to exit; also requests browser fullscreen.
+- **Sticky settings drawer** (slides from top): columns Auto(=4)/1–6, **reorder toggle**, **add/remove demo devices**, connect-URL list.
+- **Drag-reorder** with **green snapping lines**; order persisted. Hidden devices → status-bar "N hidden" tray to restore.
+- Helper: `server-info` (LAN app URLs + tokenRequired) + `remove` / `mock-add` / `mock-remove` commands.
+
+**Verified** — helper + web typecheck/build clean; WS test PASS (server-info delivered, mock-add adds a device, remove disconnects one).
+
+**Next** — mobile app redesign (icon, palette, inputs, status, background/wake-lock permissions), then CI APK.
+
+---
+
 ## 2026-07-14 — Phase 2d complete: end-to-end app→dashboard + settings + release
 
 **Done**

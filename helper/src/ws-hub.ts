@@ -2,28 +2,45 @@ import type { WebSocket, WebSocketServer } from "ws";
 import type { SourceManager } from "./sources/source-manager.js";
 import type { SourceEvent, VideoPacket } from "./sources/types.js";
 
+export interface ServerInfo {
+  appUrls: string[];
+  tokenRequired: boolean;
+}
+
 /**
  * Browser <-> helper protocol.
- *   - Control messages are JSON (device list, stats, alerts, later: commands).
- *   - Video frames (Phase 1+) are sent as binary with a small header.
+ *   - Control messages are JSON (device list, stats, server-info, commands).
+ *   - Video frames are binary: [type][idLen][deviceId][H.264 payload].
  */
-export function attachHub(wss: WebSocketServer, sources: SourceManager): void {
+export function attachHub(wss: WebSocketServer, sources: SourceManager, info: ServerInfo): void {
   wss.on("connection", (ws: WebSocket) => {
+    send(ws, { type: "server-info", appUrls: info.appUrls, tokenRequired: info.tokenRequired });
     send(ws, { type: "devices", devices: sources.devices() });
 
     const off = sources.onEvent((event) => forward(ws, event));
     ws.on("close", off);
     ws.on("message", (raw) => {
-      let msg: { type?: string } | undefined;
+      let msg: { type?: string; deviceId?: string } | undefined;
       try {
         msg = JSON.parse(raw.toString());
       } catch {
         return; // ignore non-JSON frames
       }
-      if (msg?.type === "list") {
-        send(ws, { type: "devices", devices: sources.devices() });
+      switch (msg?.type) {
+        case "list":
+          send(ws, { type: "devices", devices: sources.devices() });
+          break;
+        case "remove":
+          if (typeof msg.deviceId === "string") sources.remove(msg.deviceId);
+          break;
+        case "mock-add":
+          sources.addMockDevice();
+          break;
+        case "mock-remove":
+          sources.removeMockDevice();
+          break;
+        // Phase 8: remote-control commands (tap/swipe/keys) will be handled here.
       }
-      // Phase 8: remote-control commands (tap/swipe/keys) will be handled here.
     });
   });
 }
