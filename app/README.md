@@ -47,4 +47,12 @@ To get it:
 3. Tap **Start capturing** → grant the screen-capture prompt. The screen appears on
    the desktop dashboard tile.
 
+## Staying alive in the background
+
+The app keeps a **foreground service + partial wake lock** and prompts to be **exempted from
+battery optimization**, so Android is far less likely to kill it while a screen is left streaming.
+It also **auto-reconnects** to the helper (2s backoff) if the connection drops. The status —
+Idle / Connecting / Streaming / Reconnecting — shows both in the app (color-coded) and the
+ongoing notification.
+
 > QR pairing (scan the helper's code instead of typing the address) is a later enhancement.

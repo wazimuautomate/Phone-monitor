@@ -5,6 +5,20 @@ Newest first. One entry per work session: what was done, decisions made, and wha
 
 ---
 
+## 2026-07-14 — Enhancement pass A: mobile app redesign
+
+**Done (feature):**
+- App icon: adaptive `ic_launcher` (vector foreground matching the site logo — green phone + red live dot on black); no binary assets, works because minSdk 26.
+- Material3 **dark theme** in the 5-color palette (`colors.xml`, `themes.xml`).
+- Redesigned `activity_main.xml`: logo + title, OutlinedBox text fields with placeholder hints for helper address + token, green Start / red outlined Stop, color-coded status dot + text.
+- `CaptureState` singleton drives live status (Idle/Connecting/Streaming/Error) into the UI and the notification.
+- `Streamer` **auto-reconnects** (2s backoff) and reports status.
+- Background resilience: `WAKE_LOCK` partial lock while capturing, `REQUEST_IGNORE_BATTERY_OPTIMIZATIONS` prompt, `stopWithTask="false"`, foreground notification updated with status.
+
+**Verification** — can't build Android locally; CI (android.yml) is the test. Watching for green, then updates the `capture-latest` release APK.
+
+---
+
 ## 2026-07-14 — Enhancement pass A: desktop redesign (real-phone confirmed ✅)
 
 Owner tested Phase 2 on a real locked phone — **it works**. Phase 2 merged to `main` as baseline.

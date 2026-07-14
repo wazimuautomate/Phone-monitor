@@ -17,6 +17,7 @@ import android.media.projection.MediaProjectionManager
 import android.os.BatteryManager
 import android.os.Build
 import android.os.IBinder
+import android.os.PowerManager
 import android.view.Surface
 import java.nio.ByteBuffer
 import kotlin.concurrent.thread
@@ -24,6 +25,7 @@ import kotlin.concurrent.thread
 /**
  * Captures the screen via MediaProjection, encodes it to H.264 with MediaCodec,
  * and streams the encoded frames to the desktop helper over a WebSocket.
+ * Runs as a foreground service with a wake lock so it resists being killed.
  */
 class CaptureService : Service() {
 
@@ -38,7 +40,7 @@ class CaptureService : Service() {
 
         private const val CHANNEL_ID = "pm_capture"
         private const val NOTIF_ID = 1
-        private const val MAX_DIM = 900 // scale the longest side down to this (bandwidth)
+        private const val MAX_DIM = 900
         private const val BIT_RATE = 3_000_000
         private const val FRAME_RATE = 30
     }
@@ -48,6 +50,7 @@ class CaptureService : Service() {
     private var encoder: MediaCodec? = null
     private var inputSurface: Surface? = null
     private var streamer: Streamer? = null
+    private var wakeLock: PowerManager.WakeLock? = null
 
     @Volatile private var running = false
 
@@ -59,7 +62,8 @@ class CaptureService : Service() {
             return START_NOT_STICKY
         }
 
-        startForegroundCompat()
+        startForegroundCompat("Starting…")
+        acquireWakeLock()
 
         val resultCode = intent.getIntExtra(EXTRA_RESULT_CODE, 0)
         val data = intent.getParcelableExtraCompat<Intent>(EXTRA_RESULT_DATA)
@@ -70,6 +74,7 @@ class CaptureService : Service() {
         val dpi = intent.getIntExtra(EXTRA_DPI, 320)
 
         if (data == null || helperUrl.isEmpty()) {
+            CaptureState.set(CaptureState.ERROR, "Missing helper address")
             stopSelf()
             return START_NOT_STICKY
         }
@@ -77,6 +82,7 @@ class CaptureService : Service() {
         val pm = getSystemService(Context.MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
         val mp = pm.getMediaProjection(resultCode, data)
         if (mp == null) {
+            CaptureState.set(CaptureState.ERROR, "Could not start capture")
             stopSelf()
             return START_NOT_STICKY
         }
@@ -86,21 +92,33 @@ class CaptureService : Service() {
         }, null)
 
         val (w, h) = scale(screenW, screenH, MAX_DIM)
-        streamer = Streamer(helperUrl, token, buildHello(w, h)).also { it.start() }
+        CaptureState.set(CaptureState.CONNECTING, "Connecting to helper…")
+        streamer = Streamer(helperUrl, token, buildHello(w, h)) { status -> onStreamerStatus(status) }
+            .also { it.start() }
         startEncoder(w, h, dpi)
 
         return START_STICKY
     }
 
+    private fun onStreamerStatus(status: String) {
+        when (status) {
+            "open" -> {
+                CaptureState.set(CaptureState.STREAMING, "Streaming to helper")
+                updateNotification("Streaming this screen")
+            }
+            else -> {
+                CaptureState.set(CaptureState.ERROR, "Connection lost — reconnecting")
+                updateNotification("Reconnecting…")
+            }
+        }
+    }
+
     private fun startEncoder(w: Int, h: Int, dpi: Int) {
         val format = MediaFormat.createVideoFormat(MediaFormat.MIMETYPE_VIDEO_AVC, w, h).apply {
-            setInteger(
-                MediaFormat.KEY_COLOR_FORMAT,
-                MediaCodecInfo.CodecCapabilities.COLOR_FormatSurface,
-            )
+            setInteger(MediaFormat.KEY_COLOR_FORMAT, MediaCodecInfo.CodecCapabilities.COLOR_FormatSurface)
             setInteger(MediaFormat.KEY_BIT_RATE, BIT_RATE)
             setInteger(MediaFormat.KEY_FRAME_RATE, FRAME_RATE)
-            setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, 1) // keyframe/sec → fast joins
+            setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, 1)
         }
         val codec = MediaCodec.createEncoderByType(MediaFormat.MIMETYPE_VIDEO_AVC)
         codec.configure(format, null, null, MediaCodec.CONFIGURE_FLAG_ENCODE)
@@ -159,21 +177,39 @@ class CaptureService : Service() {
         return bm.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY)
     }
 
-    private fun startForegroundCompat() {
+    private fun acquireWakeLock() {
+        if (wakeLock?.isHeld == true) return
+        val pm = getSystemService(Context.POWER_SERVICE) as PowerManager
+        wakeLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "PhoneMonitor:capture").apply {
+            setReferenceCounted(false)
+            acquire(4 * 60 * 60 * 1000L) // 4h safety cap
+        }
+    }
+
+    private fun buildNotification(text: String): Notification =
+        Notification.Builder(this, CHANNEL_ID)
+            .setContentTitle("Phone Monitor")
+            .setContentText(text)
+            .setSmallIcon(android.R.drawable.ic_menu_view)
+            .setOngoing(true)
+            .build()
+
+    private fun startForegroundCompat(text: String) {
         val nm = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         nm.createNotificationChannel(
             NotificationChannel(CHANNEL_ID, "Screen capture", NotificationManager.IMPORTANCE_LOW),
         )
-        val notif: Notification = Notification.Builder(this, CHANNEL_ID)
-            .setContentTitle("Phone Monitor")
-            .setContentText("Sharing this screen")
-            .setSmallIcon(android.R.drawable.ic_menu_view)
-            .build()
+        val notif = buildNotification(text)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             startForeground(NOTIF_ID, notif, ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROJECTION)
         } else {
             startForeground(NOTIF_ID, notif)
         }
+    }
+
+    private fun updateNotification(text: String) {
+        val nm = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        nm.notify(NOTIF_ID, buildNotification(text))
     }
 
     private fun stopCapture() {
@@ -189,6 +225,9 @@ class CaptureService : Service() {
         projection = null
         streamer?.stop()
         streamer = null
+        runCatching { if (wakeLock?.isHeld == true) wakeLock?.release() }
+        wakeLock = null
+        CaptureState.set(CaptureState.IDLE, "Stopped")
     }
 
     override fun onDestroy() {

@@ -27,6 +27,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this pr
 - **Immersive fullscreen** mode (hides header + status bar; floating ✕ / Esc to exit).
 - **Settings drawer** (sticky, slides from top): grid columns (Auto=4 / 1–6), **drag-reorder** with green snapping lines, and **add/remove demo devices**.
 - The **capture-app connection URL** (+ token) is shown in the header and status bar via a new `server-info` message — no more hunting in the terminal.
+- Capture-app redesign: **adaptive launcher icon** matching the site, Material3 dark UI in the palette, labeled inputs with placeholder hints, and a color-coded **connection status** (Idle/Connecting/Streaming/Reconnecting).
+- Capture app now **auto-reconnects**, holds a **wake lock**, prompts for **battery-optimization exemption**, and survives task-swipe (`stopWithTask=false`) so it isn't killed while streaming in the background.
 
 ### Changed
 - Removed the Screenshot and Disconnect-All header buttons; removed the Model/Android/Battery card footer to give screens more space.

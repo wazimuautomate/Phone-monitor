@@ -6,31 +6,40 @@ import okhttp3.Response
 import okhttp3.WebSocket
 import okhttp3.WebSocketListener
 import okio.ByteString
+import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 
 /**
- * Streams H.264 to the helper over a WebSocket.
+ * Streams H.264 to the helper over a WebSocket, auto-reconnecting on drop.
  *
  * Protocol:
  *   1. a JSON "hello" text frame (device model/version/battery/size)
- *   2. binary frames, each = [1 byte type: 0=config, 1=key, 2=delta] + H.264 bytes
+ *   2. binary frames = [1 byte type: 0=config, 1=key, 2=delta] + H.264 bytes
  *
- * One WebSocket == one device, so the helper identifies the device by connection.
+ * `onStatus` receives "open" | "error" | "closed".
  */
 class Streamer(
     private val url: String,
     private val token: String,
     private val hello: String,
+    private val onStatus: (String) -> Unit,
 ) {
     private val client = OkHttpClient.Builder()
         .pingInterval(10, TimeUnit.SECONDS)
-        .retryOnConnectionFailure(true)
         .build()
+
+    private val scheduler = Executors.newSingleThreadScheduledExecutor()
 
     @Volatile private var ws: WebSocket? = null
     @Volatile private var open = false
+    @Volatile private var stopped = false
 
     fun start() {
+        connect()
+    }
+
+    private fun connect() {
+        if (stopped) return
         val request = Request.Builder()
             .url(url)
             .addHeader("x-pm-token", token)
@@ -39,16 +48,30 @@ class Streamer(
             override fun onOpen(webSocket: WebSocket, response: Response) {
                 open = true
                 webSocket.send(hello)
+                onStatus("open")
             }
 
             override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
                 open = false
+                onStatus("error")
+                scheduleReconnect()
             }
 
             override fun onClosed(webSocket: WebSocket, code: Int, reason: String) {
                 open = false
+                onStatus("closed")
+                scheduleReconnect()
             }
         })
+    }
+
+    private fun scheduleReconnect() {
+        if (stopped) return
+        try {
+            scheduler.schedule({ connect() }, 2, TimeUnit.SECONDS)
+        } catch (_: Exception) {
+            /* scheduler shut down */
+        }
     }
 
     fun sendFrame(type: Int, data: ByteArray) {
@@ -61,8 +84,10 @@ class Streamer(
     }
 
     fun stop() {
+        stopped = true
         open = false
         runCatching { ws?.close(1000, "bye") }
         ws = null
+        scheduler.shutdownNow()
     }
 }

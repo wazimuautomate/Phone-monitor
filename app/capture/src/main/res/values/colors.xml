@@ -1,0 +1,14 @@
+<resources>
+    <color name="pm_red">#E51219</color>
+    <color name="pm_green">#2FA44A</color>
+    <color name="pm_yellow">#EFDB16</color>
+    <color name="pm_white">#FFFFFF</color>
+    <color name="pm_black">#000000</color>
+
+    <color name="pm_bg">#0B0B0D</color>
+    <color name="pm_surface">#161619</color>
+    <color name="pm_border">#26262B</color>
+    <color name="pm_muted">#9A9AA4</color>
+
+    <color name="ic_launcher_background">#000000</color>
+</resources>
