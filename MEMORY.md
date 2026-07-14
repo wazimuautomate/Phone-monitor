@@ -16,7 +16,9 @@ Newest first. One entry per work session: what was done, decisions made, and wha
 
 **Verified** — helper + web typecheck/build clean; fake-app WS test PASS (device registered tier "view", 3 H.264 frames relayed with correct framing). Browser WebCodecs decode is build-verified only (needs a real phone streaming to confirm at runtime).
 
-**Next** — watch CI (APK + release); once a locked phone streams in, graduate the end-to-end path to `main`. Then Phase 1 (unlocked phones) when platform-tools is installed.
+**CI result (green):** both workflows passed on `f7e6cc8`. APK published to Release **`capture-latest`** → `phone-monitor-capture.apk` (6.1 MB), downloadable at the repo Releases page. Node CI success.
+
+**Next** — user installs the APK on a locked phone + runs the helper (`npm run dev`, note the printed `ws://<lan-ip>:8787/app`), enters that URL in the app, taps Start → screen should appear on the dashboard tile. Once confirmed, graduate the end-to-end path to `main`. Then Phase 1 (unlocked phones) when platform-tools is installed.
 
 ---
 
