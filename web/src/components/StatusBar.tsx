@@ -1,4 +1,5 @@
 import { IconLink, IconPhone } from "../lib/icons";
+import { CopyableUrl } from "./CopyableUrl";
 
 interface StatusBarProps {
   online: number;
@@ -38,9 +39,9 @@ export function StatusBar({
 
       <div className="status-right">
         {primaryUrl && (
-          <span className="status-url" title="Capture-app address">
+          <span className="status-url" title="Capture-app address — click to copy">
             <IconLink />
-            <code>{primaryUrl}</code>
+            <CopyableUrl url={primaryUrl} />
           </span>
         )}
         <span className="sep">·</span>

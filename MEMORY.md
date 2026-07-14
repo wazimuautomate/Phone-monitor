@@ -5,6 +5,23 @@ Newest first. One entry per work session: what was done, decisions made, and wha
 
 ---
 
+## 2026-07-14 — Fix hosted phone connection + app UX (copy URL, clear recent, how-to)
+
+**Reported:** on Render (`phone-monitor-yxbo.onrender.com`, kept awake via UptimeRobot), the capture app never connected — user entered `wss://phone-monitor-yxbo.onrender.com=my app token` and got "Connection lost — reconnecting".
+
+**Root cause:** the helper only upgrades WebSockets on `/ws` (dashboard) and `/app` (phone); any other path is `socket.destroy()`d. The entered address had **no `/app` path** and had the **token jammed onto the URL with `=`** instead of in the separate token field. So the socket was dropped before the handshake — hence the reconnect loop. The dashboard already shows the correct `wss://<host>/app` (App.tsx derives it from `location`), so this was purely phone-side input.
+
+**Done:**
+- `MainActivity.normalizeHelperUrl()` — makes typed addresses connectable: adds scheme (`wss://`, or `ws://` for localhost/10./192.168./172.16-31/127.), converts `http(s)://`→`ws(s)://`, appends `/app` when path is empty/`/`, strips a stray space/`=`/`?` (and anything after) from the authority. Result is written back into the field so the user sees it. History now stores normalized URLs.
+- Capture app UI: added a **How-to-connect** card (`bg_card` drawable + `howto_*` strings), a **Clear** recent-connections button (`clearHistory`), reworked the recent header into `historyHeader`, and replaced the LAN-only hints with hosted-friendly ones. Default helper field now starts empty.
+- Dashboard: new `CopyableUrl` component (click-to-copy + "Copied!" hint) used in `Header`, `StatusBar`, and `SettingsDrawer`; CSS `.copy-url`/`.copy-hint` added.
+
+**Verified:** `web` builds + `tsc --noEmit` clean; all Android XML resources parse. Android app builds in CI only (no local Android Studio) — push to `feature` triggers `android.yml` → downloadable APK.
+
+**Next / notes:** token still travels as the `x-pm-token` upgrade header (Render forwards it fine). If a future proxy strips it, add a `?token=` query fallback on `/app` to mirror `/ws`.
+
+---
+
 ## 2026-07-14 — Cloud hosting (v1 deployable from `main`)
 
 **Done:**

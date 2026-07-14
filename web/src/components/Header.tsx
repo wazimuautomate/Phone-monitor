@@ -1,4 +1,5 @@
 import { IconExpand, IconLink, IconMoon, IconRefresh, IconSettings, IconSun, Logo } from "../lib/icons";
+import { CopyableUrl } from "./CopyableUrl";
 import type { Theme } from "../lib/theme";
 
 interface HeaderProps {
@@ -41,9 +42,9 @@ export function Header({
       </div>
 
       {primaryUrl && (
-        <div className="conn-info" title="Enter this address in the capture app">
+        <div className="conn-info" title="Click the address to copy it, then paste it into the capture app">
           <IconLink className="conn-icon" />
-          <code>{primaryUrl}</code>
+          <CopyableUrl url={primaryUrl} />
           {tokenRequired && <span className="token-tag">token</span>}
         </div>
       )}

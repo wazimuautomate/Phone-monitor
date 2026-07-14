@@ -49,7 +49,7 @@ class MainActivity : AppCompatActivity() {
         projectionManager = getSystemService(MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
         prefs = getSharedPreferences("pm", MODE_PRIVATE)
 
-        binding.helperUrl.setText(prefs.getString("helperUrl", "ws://192.168.1.50:8787/app"))
+        binding.helperUrl.setText(prefs.getString("helperUrl", ""))
         binding.token.setText(prefs.getString("token", ""))
 
         binding.startButton.setOnClickListener { beginCapture() }
@@ -57,6 +57,7 @@ class MainActivity : AppCompatActivity() {
             stopService(Intent(this, CaptureService::class.java))
             CaptureState.set(CaptureState.IDLE, "Stopped")
         }
+        binding.clearHistory.setOnClickListener { clearHistory() }
 
         renderHistory()
     }
@@ -73,12 +74,14 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun beginCapture() {
-        val url = binding.helperUrl.text.toString().trim()
+        val url = normalizeHelperUrl(binding.helperUrl.text.toString())
         val token = binding.token.text.toString().trim()
         if (url.isEmpty()) {
-            CaptureState.set(CaptureState.ERROR, "Enter a helper address")
+            CaptureState.set(CaptureState.ERROR, "Enter the helper address")
             return
         }
+        // Show the cleaned-up address so the user sees exactly what we'll connect to.
+        if (url != binding.helperUrl.text.toString()) binding.helperUrl.setText(url)
         prefs.edit().putString("helperUrl", url).putString("token", token).apply()
         addToHistory(url, token)
         renderHistory()
@@ -86,6 +89,51 @@ class MainActivity : AppCompatActivity() {
         requestBatteryExemption()
         CaptureState.set(CaptureState.CONNECTING, "Requesting permission…")
         captureLauncher.launch(projectionManager.createScreenCaptureIntent())
+    }
+
+    /**
+     * Turns whatever the user typed into a connectable helper address.
+     * Accepts a bare host ("app.onrender.com"), a dashboard link
+     * ("https://app.onrender.com") or a full "wss://host/app", and always returns
+     * "ws(s)://host[:port]/app". This is what makes pasting the dashboard link work.
+     */
+    private fun normalizeHelperUrl(raw: String): String {
+        var s = raw.trim()
+        if (s.isEmpty()) return ""
+
+        val lower = s.lowercase()
+        s = when {
+            lower.startsWith("wss://") -> "wss://" + s.substring(6)
+            lower.startsWith("ws://") -> "ws://" + s.substring(5)
+            lower.startsWith("https://") -> "wss://" + s.substring(8)
+            lower.startsWith("http://") -> "ws://" + s.substring(7)
+            else -> (if (looksLocal(s)) "ws://" else "wss://") + s
+        }
+
+        val schemeEnd = s.indexOf("://") + 3
+        val scheme = s.substring(0, schemeEnd)
+        val rest = s.substring(schemeEnd)
+
+        val slash = rest.indexOf('/')
+        var authority = if (slash >= 0) rest.substring(0, slash) else rest
+        var path = if (slash >= 0) rest.substring(slash) else ""
+
+        // A host[:port] can't contain a space or '=', so anything from there on is a
+        // stray token the user pasted onto the URL — drop it (the token has its own field).
+        val cut = authority.indexOfFirst { it == ' ' || it == '=' || it == '?' }
+        if (cut >= 0) authority = authority.substring(0, cut)
+
+        path = path.trim().trimEnd('/')
+        if (path.isEmpty()) path = "/app"
+
+        return if (authority.isEmpty()) "" else scheme + authority + path
+    }
+
+    private fun looksLocal(raw: String): Boolean {
+        val host = raw.substringAfter("://").substringBefore('/').substringBefore(':').trim()
+        return host == "localhost" || host.startsWith("127.") ||
+            host.startsWith("10.") || host.startsWith("192.168.") ||
+            Regex("^172\\.(1[6-9]|2\\d|3[0-1])\\.").containsMatchIn(host)
     }
 
     private fun renderStatus(state: Int, msg: String) {
@@ -134,11 +182,16 @@ class MainActivity : AppCompatActivity() {
         saveHistory(loadHistory().filterNot { it.first == url })
     }
 
+    private fun clearHistory() {
+        prefs.edit().remove("history").apply()
+        renderHistory()
+    }
+
     private fun renderHistory() {
         val list = loadHistory()
         binding.historyList.removeAllViews()
         val visibility = if (list.isEmpty()) View.GONE else View.VISIBLE
-        binding.historyLabel.visibility = visibility
+        binding.historyHeader.visibility = visibility
         binding.historyList.visibility = visibility
         for ((url, token) in list) {
             val btn = layoutInflater.inflate(R.layout.history_item, binding.historyList, false) as MaterialButton

@@ -1,4 +1,5 @@
 import { IconMinus, IconPlus } from "../lib/icons";
+import { CopyableUrl } from "./CopyableUrl";
 
 interface SettingsDrawerProps {
   columns: number; // 0 = Auto (targets 4 per row)
@@ -78,7 +79,7 @@ export function SettingsDrawer({
           {appUrls.length ? (
             <div className="url-inline">
               {appUrls.map((u) => (
-                <code key={u}>{u}</code>
+                <CopyableUrl key={u} url={u} />
               ))}
               {tokenRequired && <span className="token-tag">token required</span>}
             </div>
