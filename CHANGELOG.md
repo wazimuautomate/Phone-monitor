@@ -18,6 +18,10 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this pr
 - `.gitattributes` for LF line-ending normalization.
 - Android capture app (Tier 2): MediaProjection → H.264 (MediaCodec) → WebSocket streaming, with a minimal helper-address/token UI and a foreground service.
 - `android.yml` GitHub Actions workflow that builds a downloadable debug APK artifact (the dev laptop has no Android Studio).
+- Helper `/app` WebSocket ingest (`WifiAppSource`) + browser **WebCodecs** H.264 decode → live Tier-2 mirroring end-to-end. Helper now binds `0.0.0.0` and prints the LAN app URL.
+- Settings panel: choose grid **columns per row** (Auto/1–6), persisted.
+- Refresh button re-syncs the device list with visual feedback.
+- APK also published to a **GitHub Release** (`capture-latest`) for easy download, not just as a CI artifact.
 
 ### Notes
 - Branch strategy: `feature` (all work) + `main` (tested-working only). APK is built in CI (the dev laptop has no Android Studio).

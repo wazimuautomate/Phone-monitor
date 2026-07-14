@@ -5,6 +5,21 @@ Newest first. One entry per work session: what was done, decisions made, and wha
 
 ---
 
+## 2026-07-14 — Phase 2d complete: end-to-end app→dashboard + settings + release
+
+**Done**
+- Helper `WifiAppSource` (WS ingest at `/app`): token check, `hello` → registers a Tier-2 device, binary `[type + H.264]` → video packets. `index.ts` routes `/ws` (browser) vs `/app` (app) on one HTTP server, binds `0.0.0.0` so phones can reach it, and logs the LAN `ws://…/app` URL. `ws-hub` forwards video to the browser as `[type][idLen][deviceId][H.264]`.
+- Browser: `video-bus` pub/sub, `ws.ts` routes binary frames, `PhoneScreen` decodes H.264 via **WebCodecs** onto a canvas (codec string parsed from SPS; SPS/PPS prepended to each keyframe), falling back to the placeholder until frames arrive.
+- Settings panel (⚙): **columns per row** (Auto/1–6), persisted in localStorage, applied to the grid.
+- **Refresh** now re-syncs the device list with a spinner.
+- `android.yml`: also publishes the APK to a **GitHub Release** `capture-latest` (stable download); kept the artifact; added `contents: write`.
+
+**Verified** — helper + web typecheck/build clean; fake-app WS test PASS (device registered tier "view", 3 H.264 frames relayed with correct framing). Browser WebCodecs decode is build-verified only (needs a real phone streaming to confirm at runtime).
+
+**Next** — watch CI (APK + release); once a locked phone streams in, graduate the end-to-end path to `main`. Then Phase 1 (unlocked phones) when platform-tools is installed.
+
+---
+
 ## 2026-07-14 — Phase 2: Android capture app (Tier 2) + APK CI
 
 **Done**

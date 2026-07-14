@@ -1,6 +1,6 @@
 import type { WebSocket, WebSocketServer } from "ws";
 import type { SourceManager } from "./sources/source-manager.js";
-import type { SourceEvent } from "./sources/types.js";
+import type { SourceEvent, VideoPacket } from "./sources/types.js";
 
 /**
  * Browser <-> helper protocol.
@@ -40,11 +40,20 @@ function forward(ws: WebSocket, event: SourceEvent): void {
       send(ws, { type: "stats", deviceId: event.deviceId, patch: event.patch });
       break;
     case "video":
-      // Phase 1: binary video framing goes here.
+      sendVideo(ws, event.packet);
       break;
   }
 }
 
 function send(ws: WebSocket, msg: unknown): void {
   if (ws.readyState === ws.OPEN) ws.send(JSON.stringify(msg));
+}
+
+// Binary video frame to the browser: [type][idLen][deviceId][H.264 payload].
+function sendVideo(ws: WebSocket, packet: VideoPacket): void {
+  if (ws.readyState !== ws.OPEN) return;
+  const idBytes = Buffer.from(packet.deviceId, "utf8");
+  const typeByte = packet.type === "config" ? 0 : packet.type === "keyframe" ? 1 : 2;
+  const header = Buffer.from([typeByte, idBytes.length]);
+  ws.send(Buffer.concat([header, idBytes, Buffer.from(packet.data)]), { binary: true });
 }

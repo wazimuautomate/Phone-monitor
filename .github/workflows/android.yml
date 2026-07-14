@@ -8,6 +8,9 @@ on:
       - ".github/workflows/android.yml"
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build:
     name: Build debug APK
@@ -36,9 +39,25 @@ jobs:
       - name: Build debug APK
         run: gradle assembleDebug --no-daemon --stacktrace
 
+      - name: Stage APK with a stable name
+        working-directory: ${{ github.workspace }}
+        run: cp app/capture/build/outputs/apk/debug/*.apk phone-monitor-capture.apk
+
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: phone-monitor-capture-debug
-          path: app/capture/build/outputs/apk/debug/*.apk
+          path: phone-monitor-capture.apk
           if-no-files-found: error
+
+      - name: Publish APK to the 'capture-latest' release
+        working-directory: ${{ github.workspace }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view capture-latest >/dev/null 2>&1 || \
+            gh release create capture-latest \
+              --title "Capture app (latest debug build)" \
+              --notes "Auto-built debug APK from the latest push. Install on locked (Tier-2) phones." \
+              --prerelease
+          gh release upload capture-latest phone-monitor-capture.apk --clobber

@@ -1,5 +1,7 @@
 // Dashboard-side client for the helper WebSocket, with auto-reconnect.
+// JSON frames carry control messages; binary frames carry H.264 video.
 import type { Device } from "../types";
+import { videoBus } from "./video-bus";
 
 export type HubMessage =
   | { type: "devices"; devices: Device[] }
@@ -25,6 +27,7 @@ export function connectHub(handlers: HubHandlers): Hub {
   let retry: ReturnType<typeof setTimeout> | undefined;
 
   const wire = (s: WebSocket) => {
+    s.binaryType = "arraybuffer";
     s.onopen = () => handlers.onOpen?.();
     s.onclose = () => {
       handlers.onClose?.();
@@ -36,10 +39,14 @@ export function connectHub(handlers: HubHandlers): Hub {
       }
     };
     s.onmessage = (ev) => {
+      if (ev.data instanceof ArrayBuffer) {
+        routeVideo(ev.data);
+        return;
+      }
       try {
         handlers.onMessage?.(JSON.parse(ev.data as string) as HubMessage);
       } catch {
-        // ignore non-JSON frames (future binary video)
+        // ignore malformed frames
       }
     };
   };
@@ -55,4 +62,19 @@ export function connectHub(handlers: HubHandlers): Hub {
       socket.close();
     },
   };
+}
+
+// Binary frame layout from the helper: [type][idLen][deviceId][H.264 payload].
+function routeVideo(buffer: ArrayBuffer): void {
+  const view = new Uint8Array(buffer);
+  if (view.length < 2) return;
+  const typeByte = view[0];
+  const idLen = view[1];
+  const deviceId = new TextDecoder().decode(view.subarray(2, 2 + idLen));
+  const data = view.subarray(2 + idLen);
+  videoBus.publish({
+    deviceId,
+    type: typeByte === 0 ? "config" : typeByte === 1 ? "keyframe" : "delta",
+    data,
+  });
 }

@@ -3,10 +3,20 @@ import type { Device } from "../types";
 interface HeaderProps {
   connected: boolean;
   devices: Device[];
+  refreshing: boolean;
+  settingsOpen: boolean;
   onRefresh: () => void;
+  onToggleSettings: () => void;
 }
 
-export function Header({ connected, devices, onRefresh }: HeaderProps) {
+export function Header({
+  connected,
+  devices,
+  refreshing,
+  settingsOpen,
+  onRefresh,
+  onToggleSettings,
+}: HeaderProps) {
   const online = devices.filter((d) => d.status === "online").length;
   return (
     <header className="header">
@@ -20,13 +30,17 @@ export function Header({ connected, devices, onRefresh }: HeaderProps) {
         />
       </div>
       <div className="header-actions">
-        <button className="action" onClick={onRefresh} title="Refresh device list">
-          ⟳ Refresh
+        <button className="action" onClick={onRefresh} disabled={refreshing} title="Re-sync device list">
+          <span className={refreshing ? "spin" : ""}>⟳</span> Refresh
         </button>
         <button className="action" title="Coming in Phase 5" disabled>
           ▢ Screenshot
         </button>
-        <button className="action" title="Coming soon" disabled>
+        <button
+          className={`action ${settingsOpen ? "active" : ""}`}
+          onClick={onToggleSettings}
+          title="Settings"
+        >
           ⚙ Settings
         </button>
         <button className="action danger" title="Coming in Phase 6" disabled>
