@@ -8,6 +8,9 @@ build/
 desktop/release/
 desktop/build/
 
+# staged client deliverables (.exe / .apk) — built, not source
+deliverables/
+
 # logs / env
 *.log
 .env
