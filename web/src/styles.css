@@ -954,6 +954,45 @@ code {
 .empty strong {
   color: var(--text);
 }
+.empty-title {
+  color: var(--text);
+  font-size: 18px;
+  font-weight: 700;
+  margin: 0 0 8px;
+}
+.empty-lead {
+  margin: 0 0 14px;
+}
+.empty-url {
+  display: inline-block;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 14px;
+  color: var(--text);
+  background: rgba(47, 164, 74, 0.12);
+  border: 1px solid rgba(47, 164, 74, 0.5);
+  border-radius: 8px;
+  padding: 8px 12px;
+  user-select: all;
+}
+.empty-note {
+  margin: 12px 0 0;
+}
+.empty-demo {
+  display: inline-block;
+  margin-top: 18px;
+  padding: 8px 16px;
+  font-size: 13px;
+  color: var(--text);
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+.empty-demo:hover {
+  border-color: var(--accent, #2fa44a);
+  background: rgba(47, 164, 74, 0.1);
+}
 
 /* Awaiting-stream liveliness on placeholder screens */
 .mock-badge {

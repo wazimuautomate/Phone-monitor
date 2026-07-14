@@ -20,6 +20,7 @@ import android.os.BatteryManager
 import android.os.Build
 import android.os.IBinder
 import android.os.PowerManager
+import android.provider.Settings
 import android.view.Surface
 import androidx.core.content.ContextCompat
 import org.json.JSONObject
@@ -58,6 +59,11 @@ class CaptureService : Service() {
 
     @Volatile private var running = false
     @Volatile private var firstFrameSent = false
+
+    // True once the socket has opened at least once this session. After that,
+    // a dropped connection is a transient blip ("Reconnecting…"), NOT a "can't
+    // connect — check the address" error (the address is clearly reachable).
+    @Volatile private var everConnected = false
 
     private var receiverRegistered = false
     private val screenReceiver = object : BroadcastReceiver() {
@@ -106,6 +112,12 @@ class CaptureService : Service() {
             return START_NOT_STICKY
         }
 
+        // If a capture is already running (e.g. reconnecting from a history tap
+        // or a restart), tear it down first — never run two streamers that would
+        // fight over the same device socket and cause a reconnect loop.
+        if (streamer != null || running) teardownCapture()
+        everConnected = false
+
         val pm = getSystemService(Context.MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
         val mp = pm.getMediaProjection(resultCode, data)
         if (mp == null) {
@@ -152,13 +164,23 @@ class CaptureService : Service() {
     private fun onStreamerStatus(status: String) {
         when {
             status == "open" -> {
+                everConnected = true
                 CaptureState.set(CaptureState.STREAMING, "Streaming to helper")
                 updateNotification("Streaming this screen")
             }
             status.startsWith("error: ") -> {
                 val reason = status.removePrefix("error: ")
-                CaptureState.set(CaptureState.ERROR, "Can’t connect — $reason")
-                updateNotification("Reconnecting… ($reason)")
+                if (everConnected) {
+                    // We were connected, so the address/Wi-Fi are fine — this is a
+                    // transient drop. Don't scare the user with "can't connect".
+                    CaptureState.set(CaptureState.CONNECTING, "Reconnecting…")
+                    updateNotification("Reconnecting… ($reason)")
+                } else {
+                    // Never connected this session — the address/token/Wi-Fi is the
+                    // likely problem, so surface it.
+                    CaptureState.set(CaptureState.ERROR, "Can’t connect — $reason")
+                    updateNotification("Can’t connect — $reason")
+                }
             }
             else -> {
                 // Clean close (e.g. server restarted) — the streamer auto-retries.
@@ -170,6 +192,7 @@ class CaptureService : Service() {
 
     /** Definitive "we're live" signal: the first encoded frame reached the socket. */
     private fun onFirstFrame() {
+        everConnected = true
         CaptureState.set(CaptureState.STREAMING, "Streaming to helper")
         updateNotification("Streaming this screen")
     }
@@ -233,10 +256,19 @@ class CaptureService : Service() {
 
     private fun buildHello(screenW: Int, screenH: Int): String =
         """{"type":"hello",""" +
+            // Stable per-device id (ANDROID_ID) so the desktop keeps ONE tile
+            // across reconnects instead of spawning a phantom duplicate.
+            """"deviceId":${jsonStr(androidId())},""" +
             """"model":${jsonStr(Build.MODEL)},""" +
             """"manufacturer":${jsonStr(Build.MANUFACTURER)},""" +
             """"androidVersion":${jsonStr(Build.VERSION.RELEASE)},""" +
             """"width":$screenW,"height":$screenH,"battery":${batteryPercent()},"screenLocked":false}"""
+
+    @Suppress("HardwareIds")
+    private fun androidId(): String =
+        runCatching {
+            Settings.Secure.getString(contentResolver, Settings.Secure.ANDROID_ID)
+        }.getOrNull().orEmpty()
 
     private fun batteryPercent(): Int {
         val bm = getSystemService(Context.BATTERY_SERVICE) as BatteryManager
@@ -278,7 +310,8 @@ class CaptureService : Service() {
         nm.notify(NOTIF_ID, buildNotification(text))
     }
 
-    private fun stopCapture() {
+    /** Release capture/stream resources. Leaves the wake lock and UI state alone. */
+    private fun teardownCapture() {
         running = false
         firstFrameSent = false
         runCatching { virtualDisplay?.release() }
@@ -290,8 +323,13 @@ class CaptureService : Service() {
         encoder = null
         inputSurface = null
         projection = null
-        streamer?.stop()
+        runCatching { streamer?.stop() }
         streamer = null
+    }
+
+    private fun stopCapture() {
+        teardownCapture()
+        everConnected = false
         runCatching { if (wakeLock?.isHeld == true) wakeLock?.release() }
         wakeLock = null
         CaptureState.set(CaptureState.IDLE, "Stopped")

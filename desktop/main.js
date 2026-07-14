@@ -36,7 +36,9 @@ async function startHelper() {
     // still loads via 127.0.0.1 (loopback is included). Binding loopback-only
     // would make the advertised LAN url unreachable — phones would time out.
     host: "0.0.0.0",
-    mock: process.env.PM_MOCK !== "0",
+    // Start with NO demo devices — a clean, blank dashboard. The user adds demo
+    // phones on demand from the empty state / Settings. Opt in with PM_MOCK=1.
+    mock: process.env.PM_MOCK === "1",
     webDir: path.join(__dirname, "build", "web"),
   });
 }

@@ -1,6 +1,6 @@
 {
   "name": "phone-monitor-desktop",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "private": true,
   "description": "Phone Monitor desktop app (Electron): live grid + AnyDesk-style remote control of Android phones.",
   "author": "wazimuautomate",

@@ -1,5 +1,6 @@
 package com.phonemonitor.capture
 
+import android.accessibilityservice.AccessibilityServiceInfo
 import android.app.Activity
 import android.content.ComponentName
 import android.content.Context
@@ -16,6 +17,7 @@ import android.provider.Settings
 import android.text.TextUtils
 import android.util.DisplayMetrics
 import android.view.View
+import android.view.accessibility.AccessibilityManager
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
@@ -171,14 +173,33 @@ class MainActivity : AppCompatActivity() {
     /** True if our ControlService is in the system's enabled-accessibility list. */
     private fun isControlEnabled(): Boolean {
         val expected = ComponentName(this, ControlService::class.java)
+
+        // Primary: ask AccessibilityManager directly. This is the most reliable
+        // across OEM quirks (e.g. Samsung formats the setting string differently).
+        runCatching {
+            val am = getSystemService(Context.ACCESSIBILITY_SERVICE) as AccessibilityManager
+            for (info in am.getEnabledAccessibilityServiceList(AccessibilityServiceInfo.FEEDBACK_ALL_MASK)) {
+                val si = info.resolveInfo?.serviceInfo ?: continue
+                if (si.packageName == expected.packageName && si.name == expected.className) return true
+            }
+        }
+
+        // Fallback: parse the enabled-services setting string (both flatten forms).
         val enabled = Settings.Secure.getString(
             contentResolver,
             Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES,
         ) ?: return false
+        val flat = expected.flattenToString()
+        val short = expected.flattenToShortString()
         val splitter = TextUtils.SimpleStringSplitter(':')
         splitter.setString(enabled)
         for (entry in splitter) {
-            if (ComponentName.unflattenFromString(entry) == expected) return true
+            if (entry.equals(flat, ignoreCase = true) ||
+                entry.equals(short, ignoreCase = true) ||
+                ComponentName.unflattenFromString(entry) == expected
+            ) {
+                return true
+            }
         }
         return false
     }

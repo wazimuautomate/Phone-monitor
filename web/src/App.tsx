@@ -317,10 +317,28 @@ export function App() {
 
       {visible.length === 0 ? (
         <main className="grid-empty">
-          <div className="empty">
-            No visible devices. Open <strong>Settings</strong> to add demo devices, or connect the
-            capture app to a phone using the address shown above.
-          </div>
+          {ordered.length === 0 ? (
+            <div className="empty">
+              <h2 className="empty-title">No phones connected yet</h2>
+              <p className="empty-lead">
+                On your phone, open the <strong>Phone Monitor</strong> app, enter this address, tap{" "}
+                <strong>Start</strong>, and turn on <strong>Remote control</strong>:
+              </p>
+              {primaryUrl ? (
+                <code className="empty-url">{primaryUrl}</code>
+              ) : (
+                <p className="empty-lead">Finding this PC’s Wi-Fi address…</p>
+              )}
+              {serverInfo.tokenRequired && <p className="empty-note">Then enter the pairing token.</p>}
+              <button className="empty-demo" onClick={() => send({ type: "mock-add" })}>
+                Or add a demo phone
+              </button>
+            </div>
+          ) : (
+            <div className="empty">
+              All devices are hidden — open the tray in the status bar to restore them.
+            </div>
+          )}
         </main>
       ) : (
         <DeviceGrid
