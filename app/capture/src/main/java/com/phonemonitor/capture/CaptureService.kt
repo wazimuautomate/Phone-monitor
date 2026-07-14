@@ -165,8 +165,8 @@ class CaptureService : Service() {
             val obj = JSONObject(text)
             when (obj.optString("type")) {
                 "control" -> {
-                    val cmd = obj.optJSONObject("cmd") ?: return
-                    val control = Control.from(cmd) ?: return
+                    val cmd = obj.optJSONObject("cmd") ?: return@runCatching
+                    val control = Control.from(cmd) ?: return@runCatching
                     ControlService.instance?.perform(control)
                 }
                 "welcome" -> {
@@ -178,6 +178,9 @@ class CaptureService : Service() {
                     }
                 }
             }
+            // Keep this `when` in statement position (its value is unused) so it
+            // needs neither an exhaustive `else` nor an `else` on the inner `if`.
+            Unit
         }
     }
 
