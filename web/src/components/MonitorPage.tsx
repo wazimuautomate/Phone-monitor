@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useLayoutEffect, useState } from "react";
 import type { Device } from "../types";
 import { DeviceCard } from "./DeviceCard";
 import { useSettings } from "../lib/settings";
@@ -17,6 +17,41 @@ interface MonitorPageProps {
   onHowTo: () => void;
 }
 
+/** Phone-shaped tile: what a card is besides the screen (head + Control + padding). */
+const CARD_CHROME_PX = 96;
+const PAGE_PADDING_PX = 32;
+const PHONE_ASPECT = 9 / 19.5;
+const MIN_TILE_PX = 130;
+
+/**
+ * Widest tile whose whole card still fits the visible height. A phone you have
+ * to scroll to finish looking at isn't much use in a monitoring grid, so the
+ * chosen tile size acts as a MAXIMUM and this caps it to what actually fits.
+ */
+function useFitTile(enabled: boolean): number | null {
+  const [fit, setFit] = useState<number | null>(null);
+  useLayoutEffect(() => {
+    if (!enabled) {
+      setFit(null);
+      return;
+    }
+    // The scroll container is what we have to fit inside.
+    const box = document.querySelector(".content") as HTMLElement | null;
+    if (!box) return;
+    const measure = () => {
+      const h = box.clientHeight;
+      if (h <= 0) return;
+      const usable = h - PAGE_PADDING_PX - CARD_CHROME_PX;
+      setFit(Math.max(MIN_TILE_PX, Math.floor(usable * PHONE_ASPECT)));
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(box);
+    return () => ro.disconnect();
+  }, [enabled]);
+  return fit;
+}
+
 export function MonitorPage({
   devices,
   nickname,
@@ -32,6 +67,7 @@ export function MonitorPage({
   const settings = useSettings();
   const [dragId, setDragId] = useState<string | null>(null);
   const [overId, setOverId] = useState<string | null>(null);
+  const fitTile = useFitTile(settings.fitToWindow && settings.columns === 0);
 
   if (devices.length === 0) {
     return (
@@ -69,9 +105,12 @@ export function MonitorPage({
   }
 
   const fixed = settings.columns > 0;
+  // Tile size is a ceiling: never wider than the user asked for, never taller
+  // than the window.
+  const tile = fitTile === null ? settings.tileSize : Math.min(settings.tileSize, fitTile);
   const style = fixed
     ? ({ "--cols": settings.columns } as React.CSSProperties)
-    : ({ "--tile": `${settings.tileSize}px` } as React.CSSProperties);
+    : ({ "--tile": `${tile}px` } as React.CSSProperties);
 
   // Reorder by dragging a card onto another; commit the new order on drop.
   const drop = (targetId: string) => {
@@ -88,7 +127,10 @@ export function MonitorPage({
 
   return (
     <div className="page page-wide">
-      <div className={`grid ${fixed ? "fixed" : ""} ${reorder ? "reorder" : ""}`} style={style}>
+      <div
+        className={`grid ${fixed ? "fixed" : ""} ${fitTile !== null ? "fit" : ""} ${reorder ? "reorder" : ""}`}
+        style={style}
+      >
         {devices.map((d) => (
           <div
             key={d.id}

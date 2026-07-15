@@ -62,11 +62,11 @@ export function DeviceCard({ device, name, reorder, onRename, onControl }: Devic
         <span className="card-meta">
           <Signal level={device.signal} />
           <Battery level={device.battery} charging={device.charging} />
-          <span>{device.fps ?? 0} fps</span>
+          <span className="fps">{device.fps ?? 0} fps</span>
         </span>
       </div>
 
-      <PhoneScreen device={device} />
+      <PhoneScreen device={device} showFps />
 
       <div className="card-foot">
         <button className="btn" onClick={onControl} disabled={!online}>

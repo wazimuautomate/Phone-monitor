@@ -106,7 +106,9 @@ export async function createHelper(opts: HelperOptions = {}): Promise<Helper> {
   const stopHeartbeat = [heartbeat(browserWss), heartbeat(appWss)];
 
   const sources = new SourceManager();
-  if (mock) sources.register(new MockSource());
+  // Always registered so "Add a demo phone" works on demand; `mock` only decides
+  // whether it starts already populated.
+  sources.register(new MockSource(mock));
   sources.register(new WifiAppSource(appWss, APP_TOKEN));
   // Phase 1: sources.register(new WifiAdbSource());
 

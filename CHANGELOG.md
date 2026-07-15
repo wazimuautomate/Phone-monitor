@@ -5,6 +5,18 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this pr
 
 ## [Unreleased]
 
+## [3.1.0] — desktop 3.1.0 / agent 3.1.0
+
+#### Fixed
+- **"Add a demo phone" did nothing.** The `MockSource` was only registered when `PM_MOCK=1`, which dev runs set and the shipped app never does — so `addMockDevice()` had no source to add to and returned silently. It is now **always registered**; `mock` only decides whether it *starts* populated. (My own testing masked this precisely because it forced `PM_MOCK=1`.)
+- **Phones no longer need scrolling.** New **Fit phones to the window** (on by default, in Customize and Settings): the tile size becomes a *maximum* and tiles shrink so a whole phone — screen plus its Control button — is visible without scrolling. Two bugs were behind the first attempt: the measuring hook held a ref that was never attached (so it measured nothing), and `minmax(<tile>, 1fr)` let columns stretch past the cap, so capping the minimum changed nothing; fitting now pins the column width.
+- **Cards adapt to their own width** (container queries), so narrow tiles don't reduce every phone to `"D.."`: fps hops to the on-screen badge first, then the battery drops its label. The name always wins.
+
+#### Changed
+- **Versioned artifacts.** Every build is now named after its version — `phone-monitor-3.1.0.apk`, `PhoneMonitor-Setup-3.1.0.exe`, `PhoneMonitor-3.1.0-portable.exe` — instead of a pile of identically-named files. The Android app's version was stale at `0.1.0`; it now tracks the product (`3.1.0`, `versionCode` encodes the semver so upgrades always install).
+- **The desktop now ships an installer** (`PhoneMonitor-Setup-3.1.0.exe`) alongside the portable build. A portable .exe unpacks itself into `%TEMP%` and runs from there, which SmartScreen, antivirus and corporate policy routinely block — the most likely reason it ran on the client's laptop but not his PC. The installer needs no admin (installs per-user).
+- **Desktop startup logging.** Anything unexpected goes to `startup.log` in the app's data folder, and a failure to start now shows a dialog naming the cause instead of a silent no-op.
+
 ### Desktop app v3 — complete UI redesign (sidebar shell + Control Room)
 
 #### Fixed (client review round 4 — CRITICAL)

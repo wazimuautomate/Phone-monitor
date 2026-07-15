@@ -30,6 +30,8 @@ export interface Settings {
   screenshotDir: string;
   recordingDir: string;
   keepAwake: boolean;
+  /** Shrink tiles so a whole phone fits the window without scrolling. */
+  fitToWindow: boolean;
   /** Schema version, so a bad default can be corrected on existing installs. */
   v?: number;
 }
@@ -48,6 +50,9 @@ export const DEFAULTS: Settings = {
   // blanks after four minutes is useless, and nobody should have to discover a
   // setting to stop that happening.
   keepAwake: true,
+  // A phone you have to scroll to see the bottom of defeats the point of a
+  // glanceable grid, so tiles fit the window by default.
+  fitToWindow: true,
 };
 
 let current: Settings = { ...DEFAULTS, ...loadJSON<Partial<Settings>>(KEY, {}) } as Settings;

@@ -30,6 +30,49 @@ let win = null;
 // powerSaveBlocker id while "keep screen awake" is on (null = off).
 let awakeId = null;
 
+// ---- Diagnostics ------------------------------------------------------------
+//
+// "It doesn't work on my PC" is impossible to act on. Everything unexpected goes
+// to a log next to the app's data, and anything fatal is shown rather than
+// failing silently — a machine we can't reach can still tell us what happened.
+
+function logPath() {
+  try {
+    return path.join(app.getPath("userData"), "startup.log");
+  } catch {
+    return null;
+  }
+}
+
+function logLine(message) {
+  try {
+    const file = logPath();
+    if (file) {
+      fs.mkdirSync(path.dirname(file), { recursive: true });
+      fs.appendFileSync(file, `${new Date().toISOString()}  ${message}\n`);
+    }
+  } catch {
+    /* logging must never be the thing that breaks the app */
+  }
+  console.log(`[desktop] ${message}`);
+}
+
+function reportFatal(where, err) {
+  const detail = err?.stack || String(err);
+  logLine(`FATAL (${where}): ${detail}`);
+  try {
+    dialog.showErrorBox(
+      "Phone Monitor couldn’t start",
+      `${where}\n\n${detail}\n\nDetails were saved to:\n${logPath() ?? "(unavailable)"}`,
+    );
+  } catch {
+    /* no UI available */
+  }
+}
+
+process.on("uncaughtException", (err) => reportFatal("Unexpected error", err));
+process.on("unhandledRejection", (err) => logLine(`unhandledRejection: ${err?.stack || err}`));
+
 // Single-instance: focus the existing window instead of opening a second app.
 if (!app.requestSingleInstanceLock()) {
   app.quit();
@@ -176,6 +219,14 @@ function createWindow() {
   win.on("enter-full-screen", pushFs);
   win.on("leave-full-screen", pushFs);
 
+  win.webContents.on("render-process-gone", (_e, details) =>
+    logLine(`renderer gone: ${details.reason} (exitCode ${details.exitCode})`),
+  );
+  win.webContents.on("did-fail-load", (_e, code, desc) => logLine(`did-fail-load ${code} ${desc}`));
+  app.on("child-process-gone", (_e, details) =>
+    logLine(`child process gone: ${details.type} ${details.reason}`),
+  );
+
   win.on("closed", () => {
     win = null;
   });
@@ -184,10 +235,13 @@ function createWindow() {
 function main() {
   app.whenReady().then(async () => {
     registerIpc();
+    logLine(`starting  v${app.getVersion()}  electron=${process.versions.electron}  ${process.platform}/${process.arch}`);
     try {
       await startHelper();
+      logLine(`helper listening on port ${PORT}`);
     } catch (err) {
-      console.error("[desktop] helper failed to start:", err);
+      // Nearly always the port already being in use (a second copy running).
+      reportFatal(`The background service couldn't start on port ${PORT}. Is Phone Monitor already running?`, err);
     }
     createWindow();
 

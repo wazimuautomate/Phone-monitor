@@ -120,6 +120,21 @@ export function SettingsPage({ themeMode, onTheme, demoCount, onAddDemo, onRemov
 
           <div className="row">
             <div className="row-main">
+              <div className="row-title">Fit phones to the window</div>
+              <div className="row-sub">
+                Shrink tiles so a whole phone is visible without scrolling. Tile size stays the
+                maximum.
+              </div>
+            </div>
+            <Toggle
+              on={s.fitToWindow}
+              label="Fit phones to the window"
+              onChange={(v) => patchSettings({ fitToWindow: v })}
+            />
+          </div>
+
+          <div className="row">
+            <div className="row-main">
               <div className="row-title">Columns</div>
               <div className="row-sub">Auto fits as many as the window allows.</div>
             </div>

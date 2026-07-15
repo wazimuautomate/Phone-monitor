@@ -1783,3 +1783,42 @@ button {
   width: 12px;
   height: 12px;
 }
+
+/* Fit-to-window: pin the column width instead of letting 1fr stretch it, so a
+   whole phone is guaranteed to fit the visible height. */
+.grid.fit {
+  grid-template-columns: repeat(auto-fill, var(--tile, 240px));
+  justify-content: center;
+}
+
+/* ===== Cards adapt to their own width =====
+   Fit-to-window can make tiles narrow, and a row of "D.." tells you nothing.
+   The name is what identifies a phone, so the meta yields to it: fps hops down
+   to the screen badge first, then the battery loses its label. */
+.card {
+  container-type: inline-size;
+}
+.fps-badge {
+  display: none;
+}
+@container (max-width: 245px) {
+  .card-meta .fps {
+    display: none;
+  }
+  .fps-badge {
+    display: block;
+  }
+}
+@container (max-width: 205px) {
+  .card-meta .batwrap span {
+    display: none;
+  }
+  .card-name b {
+    font-size: 12px;
+  }
+}
+@container (max-width: 138px) {
+  .card-meta .sig {
+    display: none;
+  }
+}

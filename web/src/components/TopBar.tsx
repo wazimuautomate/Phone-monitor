@@ -127,6 +127,17 @@ export function TopBar({
               ))}
             </div>
 
+            <div className="pop-row">
+              <span>Fit phones to the window</span>
+              <button
+                className={`toggle ${settings.fitToWindow ? "on" : ""}`}
+                onClick={() => patchSettings({ fitToWindow: !settings.fitToWindow })}
+                aria-label="Fit phones to the window"
+              >
+                <span />
+              </button>
+            </div>
+
             <div className="pop-title">Columns</div>
             <div className="pop-row">
               <span>Auto (fit width)</span>

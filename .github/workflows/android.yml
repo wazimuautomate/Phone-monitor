@@ -39,15 +39,26 @@ jobs:
       - name: Build debug APK
         run: gradle assembleDebug --no-daemon --stacktrace
 
-      - name: Stage APK as phone-monitor.apk
+      # Name every artifact after the version so a downloaded APK is
+      # identifiable on sight, instead of a pile of same-named files.
+      - name: Read app version
+        id: ver
         working-directory: ${{ github.workspace }}
-        run: cp app/capture/build/outputs/apk/debug/*.apk phone-monitor.apk
+        run: |
+          V=$(sed -n 's/.*versionName = "\(.*\)".*/\1/p' app/capture/build.gradle.kts | head -1)
+          test -n "$V" || { echo "could not read versionName"; exit 1; }
+          echo "v=$V" >> "$GITHUB_OUTPUT"
+          echo "APK version: $V"
+
+      - name: Stage APK as phone-monitor-<version>.apk
+        working-directory: ${{ github.workspace }}
+        run: cp app/capture/build/outputs/apk/debug/*.apk "phone-monitor-${{ steps.ver.outputs.v }}.apk"
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: phone-monitor
-          path: phone-monitor.apk
+          name: phone-monitor-${{ steps.ver.outputs.v }}
+          path: phone-monitor-${{ steps.ver.outputs.v }}.apk
           if-no-files-found: error
 
       - name: Publish APK to the 'capture-latest' release
@@ -64,7 +75,8 @@ jobs:
           # loses a race and fails the whole build with
           # "HTTP 422: ReleaseAsset.name already exists" — after the APK has
           # already built fine. Delete first, then upload.
+          gh release delete-asset capture-latest "phone-monitor-${{ steps.ver.outputs.v }}.apk" -y || true
+          # Unversioned names from older builds — every APK looked identical.
           gh release delete-asset capture-latest phone-monitor.apk -y || true
-          # Legacy name from older builds; harmless once it's gone.
           gh release delete-asset capture-latest phone-monitor-capture.apk -y || true
-          gh release upload capture-latest phone-monitor.apk --clobber
+          gh release upload capture-latest "phone-monitor-${{ steps.ver.outputs.v }}.apk" --clobber

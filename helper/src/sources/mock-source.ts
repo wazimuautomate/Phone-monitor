@@ -29,10 +29,16 @@ const SPECS: MockSpec[] = [
 
 /**
  * A fake capture source: emits demo devices and jitters their stats every second
- * so the dashboard shows live movement without hardware. Supports add/remove so
- * the Settings drawer can grow/shrink the demo set. Disable entirely with MOCK=0.
+ * so the dashboard shows live movement without hardware.
+ *
+ * This source is ALWAYS registered, even when nothing is seeded — otherwise
+ * "Add a demo phone" has no source to add to and silently does nothing.
+ * `seed` only decides whether it starts with devices already in it.
  */
 export class MockSource implements DeviceSource {
+  /** @param seed start with the demo set already present (dev / MOCK=1). */
+  constructor(private readonly seed: boolean = false) {}
+
   readonly connection: ConnectionType = "wifi-app";
   private readonly devicesById = new Map<string, DeviceInfo>();
   private readonly baseSignal = new Map<string, number>();
@@ -42,7 +48,7 @@ export class MockSource implements DeviceSource {
 
   async start(emit: SourceEventHandler): Promise<void> {
     this.emit = emit;
-    for (const spec of SPECS) this.spawn(spec);
+    if (this.seed) for (const spec of SPECS) this.spawn(spec);
 
     let tick = 0;
     this.timer = setInterval(() => {

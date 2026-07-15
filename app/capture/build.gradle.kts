@@ -11,8 +11,11 @@ android {
         applicationId = "com.phonemonitor.capture"
         minSdk = 26
         targetSdk = 34
-        versionCode = 1
-        versionName = "0.1.0"
+        // Keep in step with the desktop app so a pair of artifacts is obviously
+        // the same release. versionCode encodes the semver (3.1.0 -> 30100) so it
+        // always increases and Android will accept the upgrade.
+        versionCode = 30100
+        versionName = "3.1.0"
     }
 
     buildTypes {

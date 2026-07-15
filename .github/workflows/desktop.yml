@@ -32,13 +32,23 @@ jobs:
       - name: Build web + helper + bundle desktop assets
         run: npm run prepare:desktop
 
-      - name: Build portable .exe
+      - name: Build installer + portable .exe
         run: npm run dist -w desktop
+
+      # Name the artifact after the version so downloads are identifiable.
+      - name: Read app version
+        id: ver
+        shell: bash
+        run: |
+          V=$(node -p "require('./desktop/package.json').version")
+          test -n "$V" || { echo "could not read version"; exit 1; }
+          echo "v=$V" >> "$GITHUB_OUTPUT"
+          echo "Desktop version: $V"
 
       - name: Upload .exe artifact
         uses: actions/upload-artifact@v4
         with:
-          name: phone-monitor-desktop
+          name: phone-monitor-desktop-${{ steps.ver.outputs.v }}
           path: desktop/release/*.exe
           if-no-files-found: error
 
@@ -50,6 +60,11 @@ jobs:
           gh release view desktop-latest >/dev/null 2>&1 || \
             gh release create desktop-latest \
               --title "Phone Monitor Desktop (latest build)" \
-              --notes "Auto-built portable Windows .exe of the Phone Monitor desktop app. Double-click to run — no install." \
+              --notes "Auto-built Windows builds. PhoneMonitor-Setup-<version>.exe installs the app; PhoneMonitor-<version>-portable.exe runs without installing." \
               --prerelease
+          # Delete first: --clobber alone intermittently 422s with
+          # "ReleaseAsset.name already exists" and fails an otherwise-good build.
+          for f in desktop/release/*.exe; do
+            gh release delete-asset desktop-latest "$(basename "$f")" -y || true
+          done
           gh release upload desktop-latest desktop/release/*.exe --clobber

@@ -1,6 +1,6 @@
 {
   "name": "phone-monitor-desktop",
-  "version": "3.0.0",
+  "version": "3.1.0",
   "private": true,
   "description": "Phone Monitor desktop app (Electron): live grid + AnyDesk-style remote control of Android phones.",
   "author": "wazimuautomate",
@@ -8,7 +8,7 @@
   "scripts": {
     "prepare-assets": "node scripts/build.mjs",
     "start": "electron .",
-    "dist": "electron-builder --win portable",
+    "dist": "electron-builder --win nsis portable",
     "dist:dir": "electron-builder --win dir"
   },
   "devDependencies": {
@@ -32,8 +32,19 @@
       "package.json"
     ],
     "win": {
-      "target": "portable",
+      "target": [
+        "nsis",
+        "portable"
+      ],
       "icon": "assets/icon.ico"
+    },
+    "nsis": {
+      "artifactName": "PhoneMonitor-Setup-${version}.exe",
+      "shortcutName": "Phone Monitor",
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "perMachine": false,
+      "deleteAppDataOnUninstall": false
     },
     "portable": {
       "artifactName": "PhoneMonitor-${version}-portable.exe"
