@@ -5,6 +5,17 @@ Newest first. One entry per work session: what was done, decisions made, and wha
 
 ---
 
+## 2026-07-15 — Rotation, round 3: the rebuild itself was killing the connection
+
+**NEVER release the VirtualDisplay to resize it.** On Android 14+ releasing it ends the MediaProjection session → `MediaProjection.Callback.onStop()` → our `stopCapture()` → streamer closes → the desktop sees "phone disconnected". My round-2 "fix" (release + recreate at the new size) *was* the disconnect the client reported.
+
+**Correct pattern (what scrcpy does):** keep ONE VirtualDisplay for the whole session and re-point it —
+`display.setSurface(null)` → `newEncoder(w,h)` → `display.resize(w,h,dpi)` → `display.setSurface(newSurface)` → release the OLD codec/surface. Projection is released only on a genuine teardown. Still join the drain thread first (a MediaCodec released under `dequeueOutputBuffer` aborts the process).
+
+Rotation has now cost three rounds; the three traps, in order: (1) `WindowManager.currentWindowMetrics` lies in a Service — use `DisplayManager` → `Display.getRealMetrics()`; (2) don't release a MediaCodec under its drain thread; (3) don't release the VirtualDisplay at all.
+
+---
+
 ## 2026-07-15 — Rotation: why it "never worked" (two independent bugs)
 
 Client: rotate turns the phone but the desktop stays portrait, and **rotating twice disconnects the phone**. Both were real, and neither was the button.
