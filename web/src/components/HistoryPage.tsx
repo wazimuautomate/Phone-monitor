@@ -1,5 +1,5 @@
 import type { HistoryEntry } from "../types";
-import { when } from "./DevicesPage";
+import { when } from "../lib/format";
 import { IconHistory, IconPhone, IconPointer, IconTrash } from "../lib/icons";
 
 interface HistoryPageProps {

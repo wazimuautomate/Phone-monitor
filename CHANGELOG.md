@@ -7,6 +7,14 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this pr
 
 ### Desktop app v3 — complete UI redesign (sidebar shell + Control Room)
 
+#### Fixed (client review round 1)
+- **Rotate actually rotates now.** Two bugs, not one: the phone's `VirtualDisplay` is created with *fixed* bounds, so even when the handset rotated, the mirror kept the old portrait frame and just letterboxed the landscape picture inside it — the desktop could never show landscape. The agent now watches the real display and **rebuilds the VirtualDisplay + encoder at the new size**, and the fresh encoder emits a codec-config frame so the desktop's decoder re-sizes itself. The card and the Control Room stage now take their shape from the decoded frame, so **the stage really becomes landscape**. The agent also reports `canRotate` (the WRITE_SETTINGS grant), so the Rotate button is disabled with an explanation instead of silently doing nothing.
+- **Screen-off alerts work.** They only ever reacted to a broadcast, so a missed one left the desktop's view stuck and it never alerted again; a phone with no keyguard never fires `USER_PRESENT` at all. The agent now also listens for `ACTION_SCREEN_ON` and **carries the screen state in every 10s status frame** (from `PowerManager.isInteractive`), so it self-heals. The alert is on by default and is now called "Screen off".
+- **Devices are listed in the sidebar** instead of hidden behind a Devices page (page removed). Grouped Connected / Hidden / Disconnected with signal, battery and a contextual 3-dot menu (rendered through a portal so the sidebar's scroll container can't clip it).
+- **Header actions are labelled** (Refresh / Full screen / Customize / theme) — no more guessing at bare icons. Labels collapse to icons only on very narrow windows.
+- **Tile sizes are named** (S Small / M Medium / L Large / XL Extra large).
+- **Removed the hover "Control" overlay** on phone tiles — the Control button under each tile already does the job.
+
 The desktop dashboard was rebuilt from scratch on the phone app's palette, so the two products read as one system. The old single-screen grid is gone; the app is now a proper shell: **sidebar · header · monitor · status bar**, plus a dedicated **Control Room**.
 
 #### Added

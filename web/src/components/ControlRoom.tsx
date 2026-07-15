@@ -226,7 +226,11 @@ function Stage({
   }, [device.id]);
 
   return (
-    <div className={`stage ${active ? "active" : ""}`} onMouseDown={onActivate}>
+    <div
+      className={`stage ${active ? "active" : ""}`}
+      style={{ aspectRatio: `${videoSize.w} / ${videoSize.h}` }}
+      onMouseDown={onActivate}
+    >
       <PhoneScreen device={device} fill onVideoSize={onVideoSize} onCanvas={onCanvas} />
       <span className="stage-tag">{name}</span>
       {closable && (
@@ -401,6 +405,8 @@ export function ControlRoom({
 
   const quality = !stats.live ? "poor" : stats.fps >= 20 ? "good" : stats.fps >= 8 ? "fair" : "poor";
   const controllable = active.controllable !== false;
+  // canRotate is undefined on older agents; only disable when it's explicitly false.
+  const rotatable = controllable && active.canRotate !== false;
 
   return (
     <div className="room" role="dialog" aria-modal="true" aria-label={`Control ${nickname(active)}`}>
@@ -515,7 +521,16 @@ export function ControlRoom({
           <IconVolumeUp />
           <span>Vol +</span>
         </button>
-        <button className="ctrl" onClick={rotate} disabled={!controllable} title="Portrait / landscape">
+        <button
+          className="ctrl"
+          onClick={rotate}
+          disabled={!rotatable}
+          title={
+            rotatable
+              ? "Turn the phone between portrait and landscape"
+              : "Turn on “Screen rotate” in the phone app (Settings → Permissions) to allow this"
+          }
+        >
           <IconRotate />
           <span>Rotate</span>
         </button>

@@ -8,8 +8,16 @@ export interface AlertPrefs {
   connection: boolean; // device connected / disconnected
   battery: boolean; // battery fell below the threshold
   signal: boolean; // signal dropped to 1 bar or none
-  screenLock: boolean; // phone screen locked
+  screenLock: boolean; // phone screen went off / locked
 }
+
+/** Tile sizes, named so nobody has to guess what "M" means. */
+export const TILE_SIZES = [
+  { short: "S", label: "Small", value: 180 },
+  { short: "M", label: "Medium", value: 240 },
+  { short: "L", label: "Large", value: 320 },
+  { short: "XL", label: "Extra large", value: 420 },
+] as const;
 
 export interface Settings {
   /** 0 = auto (fit to width); otherwise a fixed column count. */
@@ -29,7 +37,7 @@ const KEY = "pm.settings";
 export const DEFAULTS: Settings = {
   columns: 0,
   tileSize: 240,
-  alerts: { connection: true, battery: true, signal: true, screenLock: false },
+  alerts: { connection: true, battery: true, signal: true, screenLock: true },
   batteryThreshold: 20,
   screenshotDir: "",
   recordingDir: "",

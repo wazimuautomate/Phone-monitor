@@ -28,13 +28,25 @@ export function PhoneScreen({
   children,
 }: PhoneScreenProps) {
   const [hasVideo, setHasVideo] = useState(false);
+  const [ratio, setRatio] = useState<string | undefined>(undefined);
   const onFirstFrame = useCallback(() => setHasVideo(true), []);
+
+  // Shape the box to the real picture. The phone re-encodes at the new size when
+  // it rotates, so this follows it into landscape instead of letterboxing.
+  const handleSize = useCallback(
+    (w: number, h: number) => {
+      if (w > 0 && h > 0) setRatio(`${w} / ${h}`);
+      onVideoSize?.(w, h);
+    },
+    [onVideoSize],
+  );
+
   return (
-    <div className={`screen ${fill ? "fill" : ""}`}>
+    <div className={`screen ${fill ? "fill" : ""}`} style={fill || !ratio ? undefined : { aspectRatio: ratio }}>
       <LiveScreen
         deviceId={device.id}
         onFirstFrame={onFirstFrame}
-        onVideoSize={onVideoSize}
+        onVideoSize={handleSize}
         onCanvas={onCanvas}
       />
       {!hasVideo && <MockScreen device={device} />}

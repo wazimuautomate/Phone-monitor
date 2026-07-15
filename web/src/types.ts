@@ -21,6 +21,8 @@ export interface Device {
   width?: number;
   height?: number;
   controllable?: boolean;
+  /** Phone granted WRITE_SETTINGS, so the Rotate control can work. */
+  canRotate?: boolean;
   /** Signal bars 0..4. Undefined when the phone doesn't report it. */
   signal?: number;
   network?: NetworkType;

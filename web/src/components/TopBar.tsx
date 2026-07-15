@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { ThemeMode } from "../lib/theme";
-import { patchSettings, useSettings } from "../lib/settings";
+import { patchSettings, TILE_SIZES, useSettings } from "../lib/settings";
 import {
   IconCheck,
   IconClose,
@@ -70,6 +70,7 @@ export function TopBar({
   const themeRef = useDismiss(themeOpen, () => setThemeOpen(false));
 
   const ThemeIcon = themeMode === "light" ? IconSun : themeMode === "dark" ? IconMoon : IconSystem;
+  const themeLabel = themeMode === "light" ? "Light" : themeMode === "dark" ? "Dark" : "System";
 
   return (
     <header className="topbar">
@@ -95,42 +96,33 @@ export function TopBar({
         )}
       </label>
 
-      <button className="icon-btn" onClick={onRefresh} disabled={refreshing} title="Refresh devices">
+      {/* Every action is labelled — nothing here should need guessing. */}
+      <button className="tool-btn" onClick={onRefresh} disabled={refreshing}>
         <IconRefresh className={refreshing ? "spin" : ""} />
+        <span>Refresh</span>
       </button>
 
-      <button
-        className="icon-btn"
-        onClick={onToggleFullscreen}
-        title={fullscreen ? "Exit fullscreen" : "Fullscreen"}
-      >
+      <button className="tool-btn" onClick={onToggleFullscreen}>
         {fullscreen ? <IconShrink /> : <IconExpand />}
+        <span>{fullscreen ? "Exit full screen" : "Full screen"}</span>
       </button>
 
       <div className="pop-wrap" ref={customRef}>
-        <button
-          className={`icon-btn ${customOpen ? "active" : ""}`}
-          onClick={() => setCustomOpen((v) => !v)}
-          title="Customize the grid"
-        >
+        <button className={`tool-btn ${customOpen ? "on" : ""}`} onClick={() => setCustomOpen((v) => !v)}>
           <IconSliders />
+          <span>Customize</span>
         </button>
         {customOpen && (
           <div className="pop">
             <div className="pop-title">Tile size</div>
-            <div className="seg" style={{ marginBottom: 12 }}>
-              {[
-                { label: "S", v: 180 },
-                { label: "M", v: 240 },
-                { label: "L", v: 320 },
-                { label: "XL", v: 420 },
-              ].map((o) => (
+            <div className="seg seg-col" style={{ marginBottom: 12 }}>
+              {TILE_SIZES.map((o) => (
                 <button
-                  key={o.v}
-                  className={settings.tileSize === o.v ? "on" : ""}
-                  onClick={() => patchSettings({ tileSize: o.v })}
+                  key={o.value}
+                  className={settings.tileSize === o.value ? "on" : ""}
+                  onClick={() => patchSettings({ tileSize: o.value })}
                 >
-                  {o.label}
+                  <b>{o.short}</b> {o.label}
                 </button>
               ))}
             </div>
@@ -174,12 +166,9 @@ export function TopBar({
       </div>
 
       <div className="pop-wrap" ref={themeRef}>
-        <button
-          className={`icon-btn ${themeOpen ? "active" : ""}`}
-          onClick={() => setThemeOpen((v) => !v)}
-          title="Theme"
-        >
+        <button className={`tool-btn ${themeOpen ? "on" : ""}`} onClick={() => setThemeOpen((v) => !v)}>
           <ThemeIcon />
+          <span>{themeLabel}</span>
         </button>
         {themeOpen && (
           <div className="pop" style={{ minWidth: 180 }}>

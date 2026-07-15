@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import type { ThemeMode } from "../lib/theme";
-import { patchAlerts, patchSettings, useSettings } from "../lib/settings";
+import { patchAlerts, patchSettings, TILE_SIZES, useSettings } from "../lib/settings";
 import { defaultCapturePaths, isDesktop, openPath, pickFolder, setKeepAwake } from "../lib/desktop";
 import {
   IconBell,
@@ -105,19 +105,14 @@ export function SettingsPage({ themeMode, onTheme, demoCount, onAddDemo, onRemov
               <div className="row-title">Tile size</div>
               <div className="row-sub">How big each phone is in the monitor grid.</div>
             </div>
-            <div className="seg" style={{ width: 220 }}>
-              {[
-                { label: "S", v: 180 },
-                { label: "M", v: 240 },
-                { label: "L", v: 320 },
-                { label: "XL", v: 420 },
-              ].map((o) => (
+            <div className="seg" style={{ width: 340 }}>
+              {TILE_SIZES.map((o) => (
                 <button
-                  key={o.v}
-                  className={s.tileSize === o.v ? "on" : ""}
-                  onClick={() => patchSettings({ tileSize: o.v })}
+                  key={o.value}
+                  className={s.tileSize === o.value ? "on" : ""}
+                  onClick={() => patchSettings({ tileSize: o.value })}
                 >
-                  {o.label}
+                  <b>{o.short}</b> {o.label}
                 </button>
               ))}
             </div>
@@ -199,12 +194,12 @@ export function SettingsPage({ themeMode, onTheme, demoCount, onAddDemo, onRemov
           <div className="row">
             <IconBell className="row-icon" />
             <div className="row-main">
-              <div className="row-title">Screen locked</div>
-              <div className="row-sub">Tell me when a phone’s screen locks.</div>
+              <div className="row-title">Screen off</div>
+              <div className="row-sub">Tell me when a phone’s screen turns off or locks.</div>
             </div>
             <Toggle
               on={s.alerts.screenLock}
-              label="Screen lock alerts"
+              label="Screen off alerts"
               onChange={(v) => patchAlerts({ screenLock: v })}
             />
           </div>

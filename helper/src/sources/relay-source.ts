@@ -123,6 +123,7 @@ export class RelaySource implements DeviceSource {
       charging: typeof msg.charging === "boolean" ? msg.charging : undefined,
       signal: bars(msg.signal),
       network: netType(msg.network),
+      canRotate: typeof msg.canRotate === "boolean" ? msg.canRotate : undefined,
       tier: "view",
       connection: "internet-app",
       status: "online",

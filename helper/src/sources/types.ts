@@ -33,6 +33,8 @@ export interface DeviceInfo {
   width?: number; // captured screen width in px (for coordinate mapping)
   height?: number; // captured screen height in px
   controllable?: boolean; // device accepts remote-control commands
+  /** Phone granted WRITE_SETTINGS, so the desktop's Rotate control can work. */
+  canRotate?: boolean;
 }
 
 /**

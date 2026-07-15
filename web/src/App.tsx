@@ -11,7 +11,6 @@ import { Sidebar, type Page } from "./components/Sidebar";
 import { TopBar } from "./components/TopBar";
 import { StatusBar } from "./components/StatusBar";
 import { MonitorPage } from "./components/MonitorPage";
-import { DevicesPage } from "./components/DevicesPage";
 import { HistoryPage } from "./components/HistoryPage";
 import { SettingsPage } from "./components/SettingsPage";
 import { ControlRoom } from "./components/ControlRoom";
@@ -154,7 +153,7 @@ export function App() {
           if (typeof screenLocked === "boolean" && prefs.screenLock) {
             if (screenLocked && !m.locked.has(msg.deviceId)) {
               m.locked.add(msg.deviceId);
-              pushAlert("screenLock", "Screen locked", `${name} locked`, "warn");
+              pushAlert("screenLock", "Screen off", `${name}’s screen turned off`, "warn");
             } else if (!screenLocked) {
               m.locked.delete(msg.deviceId);
             }
@@ -270,10 +269,19 @@ export function App() {
       <Sidebar
         page={page}
         collapsed={collapsed}
-        deviceCount={ordered.length}
         version={version}
+        connected={ordered.filter((d) => !hiddenSet.has(d.id))}
+        hidden={hiddenDevices}
+        disconnected={disconnected}
+        nickname={nickname}
         onNavigate={setPage}
         onToggleCollapse={() => setCollapsed((v) => !v)}
+        onControl={openRoom}
+        onRename={onRename}
+        onHide={onHide}
+        onUnhide={onUnhide}
+        onRemove={onRemove}
+        onForget={forgetDevice}
       />
 
       <div className="main">
@@ -308,20 +316,6 @@ export function App() {
             />
           )}
 
-          {page === "devices" && (
-            <DevicesPage
-              connected={ordered.filter((d) => !hiddenSet.has(d.id))}
-              hidden={hiddenDevices}
-              disconnected={disconnected}
-              nickname={nickname}
-              onControl={openRoom}
-              onRename={onRename}
-              onHide={onHide}
-              onUnhide={onUnhide}
-              onRemove={onRemove}
-              onForget={forgetDevice}
-            />
-          )}
 
           {page === "history" && (
             <HistoryPage

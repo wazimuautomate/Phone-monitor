@@ -66,18 +66,7 @@ export function DeviceCard({ device, name, reorder, onRename, onControl }: Devic
         </span>
       </div>
 
-      {reorder ? (
-        <PhoneScreen device={device} />
-      ) : (
-        <div onClick={onControl} role="button" tabIndex={-1} style={{ display: "contents" }}>
-          <PhoneScreen device={device}>
-            <div className="screen-hint">
-              <IconPointer />
-              <span>Control</span>
-            </div>
-          </PhoneScreen>
-        </div>
-      )}
+      <PhoneScreen device={device} />
 
       <div className="card-foot">
         <button className="btn" onClick={onControl} disabled={!online}>

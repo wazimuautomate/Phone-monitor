@@ -21,10 +21,14 @@ import android.net.NetworkCapabilities
 import android.net.wifi.WifiManager
 import android.os.BatteryManager
 import android.os.Build
+import android.os.Handler
 import android.os.IBinder
+import android.os.Looper
 import android.os.PowerManager
 import android.provider.Settings
+import android.view.Display
 import android.view.Surface
+import android.view.WindowManager
 import androidx.core.content.ContextCompat
 import org.json.JSONObject
 import java.nio.ByteBuffer
@@ -60,6 +64,15 @@ class CaptureService : Service() {
     private var maxDim = 900
     private var bitRate = 3_000_000
 
+    // The real display we're mirroring. Kept so a rotation can rebuild the
+    // VirtualDisplay/encoder at the NEW size — a VirtualDisplay has fixed
+    // bounds, so without this a rotated phone just letterboxes inside the old
+    // portrait frame and the desktop never sees a landscape picture.
+    private var screenW = 1080
+    private var screenH = 1920
+    private var screenDpi = 320
+    private var displayListener: DisplayManager.DisplayListener? = null
+
     private var projection: MediaProjection? = null
     private var virtualDisplay: VirtualDisplay? = null
     private var encoder: MediaCodec? = null
@@ -87,7 +100,10 @@ class CaptureService : Service() {
             when (intent?.action) {
                 Intent.ACTION_SCREEN_OFF ->
                     streamer?.sendStatus("""{"type":"status","screenLocked":true}""")
-                Intent.ACTION_USER_PRESENT ->
+                // SCREEN_ON as well as USER_PRESENT: a phone with no keyguard never
+                // fires USER_PRESENT, which would otherwise leave the desktop
+                // believing the screen is still off forever.
+                Intent.ACTION_SCREEN_ON, Intent.ACTION_USER_PRESENT ->
                     streamer?.sendStatus("""{"type":"status","screenLocked":false}""")
             }
         }
@@ -97,6 +113,7 @@ class CaptureService : Service() {
         super.onCreate()
         val filter = IntentFilter().apply {
             addAction(Intent.ACTION_SCREEN_OFF)
+            addAction(Intent.ACTION_SCREEN_ON)
             addAction(Intent.ACTION_USER_PRESENT)
         }
         ContextCompat.registerReceiver(this, screenReceiver, filter, ContextCompat.RECEIVER_NOT_EXPORTED)
@@ -120,9 +137,9 @@ class CaptureService : Service() {
         val token = intent.getStringExtra(EXTRA_TOKEN).orEmpty()
         remote = intent.getBooleanExtra(EXTRA_REMOTE, false)
         applyQuality(intent.getStringExtra(EXTRA_QUALITY).orEmpty())
-        val screenW = intent.getIntExtra(EXTRA_WIDTH, 1080)
-        val screenH = intent.getIntExtra(EXTRA_HEIGHT, 1920)
-        val dpi = intent.getIntExtra(EXTRA_DPI, 320)
+        screenW = intent.getIntExtra(EXTRA_WIDTH, 1080)
+        screenH = intent.getIntExtra(EXTRA_HEIGHT, 1920)
+        screenDpi = intent.getIntExtra(EXTRA_DPI, 320)
 
         if (data == null || helperUrl.isEmpty()) {
             CaptureState.set(CaptureState.ERROR, "Missing helper address")
@@ -159,8 +176,9 @@ class CaptureService : Service() {
             onStatus = { status -> onStreamerStatus(status) },
             onMessage = { text -> onControlMessage(text) },
         ).also { it.start() }
-        startEncoder(w, h, dpi)
+        startEncoder(w, h, screenDpi)
         startStatusUpdates()
+        watchRotation()
 
         return START_STICKY
     }
@@ -308,8 +326,9 @@ class CaptureService : Service() {
         sb.append(""""width":$screenW,"height":$screenH,""")
         sb.append(""""battery":${batteryPercent()},"charging":${isCharging()},""")
         sb.append(""""network":${jsonStr(net)},""")
+        sb.append(""""canRotate":${canRotate()},""")
         if (bars != null) sb.append(""""signal":$bars,""")
-        sb.append(""""screenLocked":false}""")
+        sb.append(""""screenLocked":${!isScreenOn()}}""")
         return sb.toString()
     }
 
@@ -319,12 +338,97 @@ class CaptureService : Service() {
         val sb = StringBuilder()
         sb.append("""{"type":"status",""")
         sb.append(""""battery":${batteryPercent()},"charging":${isCharging()},""")
+        // Carry the screen state on every tick, not just on the SCREEN_OFF/ON
+        // broadcast. If a broadcast is ever missed the desktop would otherwise
+        // stay stuck on a stale value and never alert again; this self-heals.
+        sb.append(""""screenLocked":${!isScreenOn()},""")
         sb.append(""""name":${jsonStr(displayName())},""")
+        sb.append(""""canRotate":${canRotate()},""")
         sb.append(""""network":${jsonStr(net)}""")
         if (bars != null) sb.append(""","signal":$bars""")
         sb.append("}")
         return sb.toString()
     }
+
+    /** True while the display is on. */
+    private fun isScreenOn(): Boolean = runCatching {
+        (getSystemService(Context.POWER_SERVICE) as PowerManager).isInteractive
+    }.getOrDefault(true)
+
+    // ---- Rotation ----
+
+    /**
+     * Watch the real display and rebuild the capture whenever it changes shape.
+     *
+     * A VirtualDisplay has FIXED bounds, so when the phone rotates the mirror
+     * keeps the old portrait frame and just letterboxes the landscape picture
+     * inside it — the desktop would never receive a landscape image. Recreating
+     * the VirtualDisplay + encoder at the new size makes the stream genuinely
+     * follow the phone, and the fresh encoder emits a new codec-config frame so
+     * the desktop's decoder re-sizes itself automatically.
+     */
+    private fun watchRotation() {
+        if (displayListener != null) return
+        val dm = getSystemService(Context.DISPLAY_SERVICE) as DisplayManager
+        val listener = object : DisplayManager.DisplayListener {
+            override fun onDisplayAdded(displayId: Int) {}
+            override fun onDisplayRemoved(displayId: Int) {}
+            override fun onDisplayChanged(displayId: Int) {
+                if (displayId != Display.DEFAULT_DISPLAY) return
+                onDisplayResized()
+            }
+        }
+        runCatching { dm.registerDisplayListener(listener, Handler(Looper.getMainLooper())) }
+            .onSuccess { displayListener = listener }
+    }
+
+    private fun stopWatchingRotation() {
+        val listener = displayListener ?: return
+        displayListener = null
+        runCatching {
+            (getSystemService(Context.DISPLAY_SERVICE) as DisplayManager).unregisterDisplayListener(listener)
+        }
+    }
+
+    /** onDisplayChanged also fires for brightness etc., so only act on a real resize. */
+    private fun onDisplayResized() {
+        if (!running) return
+        val (w, h) = realScreenSize() ?: return
+        if (w == screenW && h == screenH) return
+        screenW = w
+        screenH = h
+        val (ew, eh) = scale(w, h, maxDim)
+        rebuildEncoder(ew, eh)
+    }
+
+    /** Swap the encoder + VirtualDisplay for new dimensions, keeping the socket. */
+    private fun rebuildEncoder(w: Int, h: Int) {
+        running = false
+        runCatching { virtualDisplay?.release() }
+        runCatching { encoder?.stop() }
+        runCatching { encoder?.release() }
+        runCatching { inputSurface?.release() }
+        virtualDisplay = null
+        encoder = null
+        inputSurface = null
+        runCatching { startEncoder(w, h, screenDpi) }
+    }
+
+    private fun realScreenSize(): Pair<Int, Int>? = runCatching {
+        val wm = getSystemService(Context.WINDOW_SERVICE) as WindowManager
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            val b = wm.currentWindowMetrics.bounds
+            b.width() to b.height()
+        } else {
+            val m = android.util.DisplayMetrics()
+            @Suppress("DEPRECATION")
+            wm.defaultDisplay.getRealMetrics(m)
+            m.widthPixels to m.heightPixels
+        }
+    }.getOrNull()
+
+    /** The desktop's Rotate button only works if the user granted WRITE_SETTINGS. */
+    private fun canRotate(): Boolean = runCatching { Settings.System.canWrite(this) }.getOrDefault(false)
 
     /** Push battery / charging / signal / name to the desktop every 10s. */
     private fun startStatusUpdates() {
@@ -438,6 +542,7 @@ class CaptureService : Service() {
         running = false
         firstFrameSent = false
         stopStatusUpdates()
+        stopWatchingRotation()
         runCatching { virtualDisplay?.release() }
         runCatching { encoder?.stop() }
         runCatching { encoder?.release() }

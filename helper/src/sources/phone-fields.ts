@@ -36,5 +36,6 @@ export function statusPatch(msg: Record<string, unknown>): Partial<DeviceInfo> {
   if (network !== undefined) patch.network = network;
   const name = phoneName(msg);
   if (name !== undefined) patch.name = name;
+  if (typeof msg.canRotate === "boolean") patch.canRotate = msg.canRotate;
   return patch;
 }

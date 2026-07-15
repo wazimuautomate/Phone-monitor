@@ -108,6 +108,7 @@ export class MockSource implements DeviceSource {
       width: 1080,
       height: 2400,
       controllable: true,
+      canRotate: true,
       lastUpdate: Date.now(),
     };
     this.devicesById.set(id, info);

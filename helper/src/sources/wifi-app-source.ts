@@ -156,6 +156,7 @@ export class WifiAppSource implements DeviceSource {
         charging: typeof msg.charging === "boolean" ? msg.charging : undefined,
         signal: bars(msg.signal),
         network: netType(msg.network),
+        canRotate: typeof msg.canRotate === "boolean" ? msg.canRotate : undefined,
         tier: "view",
         connection: "wifi-app",
         status: "online",
