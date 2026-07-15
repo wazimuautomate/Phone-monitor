@@ -256,7 +256,8 @@ class CaptureService : Service() {
     /** How we word the peer in status text: the hosted relay vs. the local helper. */
     private fun peer(): String = if (remote) "relay" else "helper"
 
-    private fun startEncoder(w: Int, h: Int, dpi: Int) {
+    /** Build + start an H.264 encoder at (w,h) and return its input Surface. */
+    private fun newEncoder(w: Int, h: Int): Surface {
         val format = MediaFormat.createVideoFormat(MediaFormat.MIMETYPE_VIDEO_AVC, w, h).apply {
             setInteger(MediaFormat.KEY_COLOR_FORMAT, MediaCodecInfo.CodecCapabilities.COLOR_FormatSurface)
             setInteger(MediaFormat.KEY_BIT_RATE, bitRate)
@@ -265,15 +266,21 @@ class CaptureService : Service() {
         }
         val codec = MediaCodec.createEncoderByType(MediaFormat.MIMETYPE_VIDEO_AVC)
         codec.configure(format, null, null, MediaCodec.CONFIGURE_FLAG_ENCODE)
-        inputSurface = codec.createInputSurface()
+        val surface = codec.createInputSurface()
         codec.start()
         encoder = codec
+        inputSurface = surface
+        return surface
+    }
+
+    private fun startEncoder(w: Int, h: Int, dpi: Int) {
+        val surface = newEncoder(w, h)
 
         virtualDisplay = projection?.createVirtualDisplay(
             "pm-capture",
             w, h, dpi,
             DisplayManager.VIRTUAL_DISPLAY_FLAG_AUTO_MIRROR,
-            inputSurface, null, null,
+            surface, null, null,
         )
 
         firstFrameSent = false
@@ -423,30 +430,58 @@ class CaptureService : Service() {
     }
 
     /**
-     * Swap the encoder + VirtualDisplay for new dimensions, keeping the socket
-     * (and therefore the desktop's tile) alive.
+     * Re-shape the capture for a new screen size, keeping the projection — and
+     * therefore the socket and the desktop's tile — alive.
      *
-     * Only ever called off the main thread, and it stops the drain loop and
-     * WAITS for that thread before releasing the codec: tearing a MediaCodec
-     * down underneath a thread blocked in dequeueOutputBuffer kills the process.
+     * NEVER release the VirtualDisplay to do this. Releasing it ends the
+     * MediaProjection session (Android 14+), which fires MediaProjection.
+     * Callback.onStop -> stopCapture() -> the streamer closes: from the desktop
+     * that looks exactly like "the phone disconnected when I rotated". Instead
+     * we keep the one VirtualDisplay and swap what it draws into, via
+     * resize() + setSurface() — the same trick scrcpy uses.
+     *
+     * Only ever called off the main thread.
      */
     private fun rebuildEncoder(w: Int, h: Int) {
         synchronized(rebuildLock) {
+            val display = virtualDisplay ?: return
+            if (projection == null) return
+
+            // Stop the drain loop and WAIT for it: tearing a MediaCodec down
+            // underneath a thread blocked in dequeueOutputBuffer kills the process.
             running = false
             runCatching { drainThread?.join(600) }
             drainThread = null
-            runCatching { virtualDisplay?.release() }
-            runCatching { encoder?.stop() }
-            runCatching { encoder?.release() }
-            runCatching { inputSurface?.release() }
-            virtualDisplay = null
+
+            val oldEncoder = encoder
+            val oldSurface = inputSurface
             encoder = null
             inputSurface = null
-            if (projection == null) return
-            // A fresh encoder emits a new codec-config frame, so the desktop's
+
+            // Point the display away from the surface we're about to destroy.
+            runCatching { display.setSurface(null) }
+
+            val swapped = runCatching {
+                val surface = newEncoder(w, h)
+                // Re-shape the SAME VirtualDisplay rather than making a new one.
+                display.resize(w, h, screenDpi)
+                display.setSurface(surface)
+            }.isSuccess
+
+            runCatching { oldEncoder?.stop() }
+            runCatching { oldEncoder?.release() }
+            runCatching { oldSurface?.release() }
+
+            if (!swapped) {
+                CaptureState.set(CaptureState.ERROR, "Couldn’t follow the rotation")
+                return
+            }
+
+            // The fresh encoder emits a new codec-config frame, so the desktop's
             // decoder re-sizes itself and the tile becomes landscape.
-            runCatching { startEncoder(w, h, screenDpi) }
-                .onFailure { CaptureState.set(CaptureState.ERROR, "Couldn’t follow the rotation") }
+            firstFrameSent = false
+            running = true
+            drainThread = thread(name = "pm-encoder") { drainLoop() }
         }
     }
 
