@@ -18,11 +18,10 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this pr
 The desktop dashboard was rebuilt from scratch on the phone app's palette, so the two products read as one system. The old single-screen grid is gone; the app is now a proper shell: **sidebar · header · monitor · status bar**, plus a dedicated **Control Room**.
 
 #### Added
-- **Collapsible sidebar** — logo + name, `Monitor` / `History` / `Settings`, a separator, then `Devices` (with a live count), and the **live app version** pinned at the bottom.
-- **Header** — connected count, device **search**, refresh, real **fullscreen**, **Customize** (tile size S/M/L/XL, auto vs fixed columns, rearrange), and **theme (System / Light / Dark)**.
+- **Collapsible sidebar** — logo + name, `Monitor` / `History` / `Settings`, a separator, then the **device list itself** (Connected / Hidden / Disconnected, each with signal, battery and a 3-dot menu), and the **live app version** pinned at the bottom.
+- **Header** — connected count, device **search**, and labelled actions: Refresh, Full screen, **Customize** (named tile sizes, auto vs fixed columns, rearrange) and **theme (System / Light / Dark)**.
 - **Monitor** — responsive grid that scales from a laptop to a TV (`auto-fill` + tile size, or a fixed column count). Each card: live dot, name + inline rename, **signal bars, battery, fps**, a full-height phone screen, and a **Control** button into the Control Room. Drag to reorder; demo phones and a guided empty state when nothing is connected.
 - **Control Room** — header (name, live state, fps, ms, signal, battery), the phone stage with tap / drag-swipe / wheel-scroll / keyboard typing, and a full control bar: **Back, Home, Recents, Notifications, Vol −/+, Rotate, Lock, Power, Screenshot, Record, Leave**. **Multiple phones can be added to the room** and controlled side by side (click a stage to make it active). **Leave always finalises and saves an in-progress recording.**
-- **Devices page** — Connected / Hidden / Disconnected, each with battery, signal and a 3-dot menu whose actions match the category (view·rename·hide·remove / unhide·remove / remove).
 - **History page** — every phone that ever connected (persisted), with last-seen, online state, control/reconnect and remove.
 - **Settings** — per-alert toggles (**connection, low battery + threshold, weak signal, screen lock**), tile size, columns, **screenshot & recording folders** (pick + open), demo phones, theme, and **Keep the screen awake** (a real `powerSaveBlocker`, so the wall of phones never blanks).
 - **Status bar** — copyable connect URL, a **How to connect** modal, and online/total counts.
