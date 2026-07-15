@@ -1,5 +1,7 @@
 import { useState } from "react";
-import { IconCopy, IconHelp, IconLink } from "../lib/icons";
+import { IconCopy, IconHelp, IconLink, IconSun } from "../lib/icons";
+import { useSettings } from "../lib/settings";
+import { isDesktop } from "../lib/desktop";
 
 interface StatusBarProps {
   url: string | null;
@@ -11,6 +13,9 @@ interface StatusBarProps {
 
 export function StatusBar({ url, tokenRequired, online, total, onHowTo }: StatusBarProps) {
   const [copied, setCopied] = useState(false);
+  const { keepAwake } = useSettings();
+  // Only the desktop app can actually hold the display awake.
+  const awake = keepAwake && isDesktop();
 
   const copy = async () => {
     if (!url) return;
@@ -44,6 +49,13 @@ export function StatusBar({ url, tokenRequired, online, total, onHowTo }: Status
         <IconHelp />
         How to connect
       </button>
+
+      {awake && (
+        <span className="chip on" title="This PC won’t blank or sleep while Phone Monitor is open">
+          <IconSun className="chip-ic" />
+          Screen stays on
+        </span>
+      )}
 
       <span className="status-right">
         <span>

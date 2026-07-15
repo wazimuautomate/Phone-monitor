@@ -30,9 +30,12 @@ export interface Settings {
   screenshotDir: string;
   recordingDir: string;
   keepAwake: boolean;
+  /** Schema version, so a bad default can be corrected on existing installs. */
+  v?: number;
 }
 
 const KEY = "pm.settings";
+const VERSION = 2;
 
 export const DEFAULTS: Settings = {
   columns: 0,
@@ -41,12 +44,24 @@ export const DEFAULTS: Settings = {
   batteryThreshold: 20,
   screenshotDir: "",
   recordingDir: "",
-  keepAwake: false,
+  // On by default: this app exists to be glanced at. A wall of phones that
+  // blanks after four minutes is useless, and nobody should have to discover a
+  // setting to stop that happening.
+  keepAwake: true,
 };
 
 let current: Settings = { ...DEFAULTS, ...loadJSON<Partial<Settings>>(KEY, {}) } as Settings;
 // A partial saved blob (e.g. from an older version) must not leave `alerts` half-set.
 current.alerts = { ...DEFAULTS.alerts, ...(current.alerts ?? {}) };
+
+// v2: "keep the screen awake" and the screen-off alert used to default OFF.
+// Nobody chose that — it was a bad default — so correct it once for installs
+// that saved settings before this. Later versions won't touch it again, so a
+// deliberate "off" from here on sticks.
+if ((current.v ?? 1) < VERSION) {
+  current = { ...current, keepAwake: true, alerts: { ...current.alerts, screenLock: true }, v: VERSION };
+  saveJSON(KEY, current);
+}
 
 const listeners = new Set<() => void>();
 

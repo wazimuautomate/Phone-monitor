@@ -1772,3 +1772,14 @@ button {
   left: 0;
   z-index: 120;
 }
+
+/* Chip with a leading icon (e.g. the status bar's "Screen stays on"). */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.chip-ic {
+  width: 12px;
+  height: 12px;
+}
