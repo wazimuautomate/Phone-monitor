@@ -5,6 +5,24 @@ Newest first. One entry per work session: what was done, decisions made, and wha
 
 ---
 
+## 2026-07-15 — Android Agent app: full four-tab UI redesign (+ light/dark theme)
+
+Client ran the earlier Agent screens through Google Stitch, liked the look, and asked to implement it in the real app — but Stitch had invented irrelevant content (streaming jargon, a fake "Administrator" person, cloud relay, iPad/MacBook history). Redesigned to match our actual product, then built it in the Android app.
+
+- **Structure:** single `MainActivity` + `BottomNavigationView` hosting four `page_*.xml` layouts toggled by visibility (no fragments — keeps the consent launcher / accessibility checks / history in one place, lowest CI-build risk since the laptop can't build Android locally).
+  - **Home** = status + connected-to + this-phone (name / local IP / battery) + quick setup.
+  - **Remote** = the connection hub: *On the same Wi-Fi* (helper address + token → Connect) **and** *Away from home* (relay address + token → Start + live 9-digit code) + remote-control (accessibility) enable. Preserves both existing flows (`normalizeHelperUrl` / `normalizeRelayBase`, `beginCapture(remote)`).
+  - **History** = recent local connections (tap reconnect, long-press remove, Clear all) — unchanged storage.
+  - **Settings** = **theme (System/Light/Dark, default System)**, permissions overview w/ live chips (screen capture, remote control, keep-running, notifications), editable phone name, **Monitor quality (Low/Med/High → real `EXTRA_QUALITY` on `CaptureService`: 720p/900p/1280p + 2/3/6 Mbps)**, "Later features" (QR pairing = Soon), About.
+- **Theme:** app converted to `Theme.Material3.DayNight`; light palette in `values/colors.xml`, dark in `values-night/colors.xml`; applied app-wide by new `App : Application` and switched live via `AppCompatDelegate.setDefaultNightMode` (pref `themeMode`). All layouts use adaptive `pm_*` colors (no more hardcoded `pm_white`).
+- **Copy:** plain words ("monitor" not "stream"); removed marketing/fake content.
+- **Assets:** ~18 vector icons + card20 / chip / seg / step / tag drawables + bottom-nav menu + `nav_item_color` selector + `Pm.*` row/section/seg styles.
+- **Verification:** can't build locally; cross-checked every `@string`/`@drawable`/`@color`/`@style`/`R.*` reference and every `binding.pageX.<id>` against its layout — all resolve. Relies on CI (`android.yml`) to compile the APK.
+
+**Note:** the repo advanced mid-session (relay feature landed at commit 902d33d) — folded the relay/remote-code path into the Remote tab rather than treating "internet" as a future feature. HTML mockups in `mobile-redesign/`.
+
+---
+
 ## 2026-07-15 — Remote access (out-of-home) implemented: relay + pairing codes
 
 Client asked for TWO connection methods: the existing LAN one **and** AnyDesk-style remote (control a phone from another city). Built the remote path **relay-brokered**, reusing the entire H.264 → WebCodecs → control pipeline:

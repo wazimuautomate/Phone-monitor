@@ -5,6 +5,26 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this pr
 
 ## [Unreleased]
 
+### Android Agent app — full four-tab UI redesign (Home / Remote / History / Settings)
+
+Rebuilt the on-device **Agent** UI from one long scroll into a clean four-tab shell with a bottom nav, matching the new design direction (plain words, real features only, same brand palette as the desktop app). **No functional flow was dropped** — local connect, relay/remote-code connect, accessibility remote control and connection history are all preserved and re-wired.
+
+#### Added
+- **Bottom-nav shell** (`activity_main.xml` + `BottomNavigationView`): one `MainActivity` hosts four page layouts (`page_home` / `page_remote` / `page_history` / `page_settings`) toggled by visibility — keeps the MediaProjection consent launcher, accessibility checks and history in one place.
+- **Home** — live status card (Monitoring / Connecting / Not connected), a Start/Stop monitoring button, this-phone info (name, local Wi-Fi IP, battery + charging), and a 3-step quick-setup carousel.
+- **Remote** — the connection hub: *On the same Wi-Fi* (desktop address + token → Connect) and *Away from home* (relay address + token → Start, with the live 9-digit code), plus the remote-control (accessibility) enable card and a live connection-status strip.
+- **History** — recent desktop connections as cards (tap to reconnect, long-press to remove, Clear all) with an empty state.
+- **Settings** — **theme switch: System / Light / Dark (default System)**; a permissions overview (screen capture, remote control, keep-running, notifications) with live on/off chips that deep-link to the right Android screen; editable phone name; **Monitor quality (Low/Medium/High)** that now actually drives capture resolution + bitrate; a "Later features" note (QR pairing — *Soon*); and About.
+- **Light theme**: the app is now DayNight — a full light palette (`values/colors.xml`) + dark palette (`values-night/colors.xml`), applied app-wide from a new `App : Application` and switched live via `AppCompatDelegate`.
+- ~18 hand-authored vector icons + card / chip / segment / step drawables on the brand palette (`#0B0B0D` / `#2FA44A`).
+
+#### Changed
+- Copy rewritten to plain words throughout ("monitor", not "stream"; removed marketing lines like "optimized for low-latency transmission").
+- `CaptureService` reads `EXTRA_QUALITY` → Low/Medium/High map to 720p·2 Mbps / 900p·3 Mbps / 1280p·6 Mbps.
+- `MainActivity` rewritten around the four tabs (page switching + all wiring); `strings.xml` / `colors.xml` / `themes.xml` reworked; `history_item.xml` restyled as a card row.
+
+> Built in CI (the dev laptop has no Android Studio); install `phone-monitor.apk` from the `capture-latest` release to test on a phone. HTML mockups of the four screens live in `mobile-redesign/`.
+
 ### Remote access (out-of-home) — connect from any network
 
 A second connection method alongside the local (same-Wi-Fi) one: control a phone from a different network / city / country, AnyDesk-style, brokered by a hosted relay and paired with a 9-digit code.

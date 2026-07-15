@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html class="dark" lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Phone Monitor — Settings</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@100..900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0&amp;display=swap" rel="stylesheet"/>
+<script>
+  tailwind.config = {
+    darkMode: "class",
+    theme: { extend: {
+      colors: {
+        bg: "#0B0B0D", surface: "#141417", elev: "#1D1D22", border: "#26262B",
+        text: "#F2F3F5", muted: "#9A9AA4", green: "#2FA44A", "green-bright": "#55D06E",
+        red: "#E5484D", yellow: "#EFDB16"
+      },
+      fontFamily: { sans: ["Outfit", "system-ui", "sans-serif"] },
+    }},
+  }
+</script>
+<style>
+  body { background:#0B0B0D; color:#F2F3F5; font-family:'Outfit',system-ui,sans-serif; -webkit-tap-highlight-color:transparent; }
+  .card { background:#141417; border:1px solid #26262B; border-radius:20px; }
+  .row { transition:background .15s ease; }
+  .row:active { background:rgba(255,255,255,.04); }
+  .chip-on { color:#2FA44A; background:rgba(47,164,74,.15); }
+  .seg { background:#0B0B0D; border:1px solid #26262B; }
+  .seg-item.active { background:#2FA44A; color:#04210F; font-weight:700; }
+  .material-symbols-outlined { font-variation-settings:'FILL' 0,'wght' 400,'GRAD' 0,'opsz' 24; }
+  .fill { font-variation-settings:'FILL' 1,'wght' 400,'GRAD' 0,'opsz' 24; }
+</style>
+</head>
+<body class="min-h-screen pb-24">
+
+<header class="sticky top-0 z-40 bg-bg/90 backdrop-blur border-b border-border flex justify-between items-center px-5 py-3">
+  <div class="flex items-center gap-2">
+    <span class="material-symbols-outlined text-green fill">sensors</span>
+    <span class="text-[17px] font-bold">Phone Monitor</span>
+    <span class="text-[11px] font-semibold text-muted border border-border rounded-full px-2 py-[1px]">Agent</span>
+  </div>
+  <div class="flex items-center gap-1.5 text-green text-[13px] font-semibold">
+    <span class="material-symbols-outlined text-[18px]">wifi</span><span>Connected</span>
+  </div>
+</header>
+
+<main class="px-5 py-6 flex flex-col gap-7">
+
+  <h1 class="text-[24px] font-bold px-1 -mb-2">Settings</h1>
+
+  <!-- Permissions -->
+  <section class="flex flex-col gap-3">
+    <h2 class="text-[12px] tracking-[0.12em] font-semibold text-green uppercase px-1">Permissions</h2>
+    <div class="card overflow-hidden">
+      <div class="row flex items-center gap-4 p-4 border-b border-border">
+        <span class="material-symbols-outlined text-green">screen_share</span>
+        <div class="flex flex-col flex-grow">
+          <span class="text-[15px] font-medium">Screen capture</span>
+          <span class="text-[12px] text-muted">Show this screen on your desktop</span>
+        </div>
+        <span class="text-[12px] font-bold rounded-full px-3 py-1 chip-on">Allowed</span>
+      </div>
+      <div class="row flex items-center gap-4 p-4 border-b border-border">
+        <span class="material-symbols-outlined text-green">touch_app</span>
+        <div class="flex flex-col flex-grow">
+          <span class="text-[15px] font-medium">Remote control</span>
+          <span class="text-[12px] text-muted">Let the desktop tap and type</span>
+        </div>
+        <span class="text-[12px] font-bold rounded-full px-3 py-1 chip-on">On</span>
+      </div>
+      <div class="row flex items-center gap-4 p-4 border-b border-border">
+        <span class="material-symbols-outlined text-green">battery_charging_full</span>
+        <div class="flex flex-col flex-grow">
+          <span class="text-[15px] font-medium">Keep running</span>
+          <span class="text-[12px] text-muted">Don't sleep while monitoring</span>
+        </div>
+        <span class="text-[12px] font-bold rounded-full px-3 py-1 chip-on">On</span>
+      </div>
+      <div class="row flex items-center gap-4 p-4">
+        <span class="material-symbols-outlined text-muted">notifications</span>
+        <div class="flex flex-col flex-grow">
+          <span class="text-[15px] font-medium">Notifications</span>
+          <span class="text-[12px] text-muted">Show a status while monitoring</span>
+        </div>
+        <span class="material-symbols-outlined text-muted">chevron_right</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- This phone -->
+  <section class="flex flex-col gap-3">
+    <h2 class="text-[12px] tracking-[0.12em] font-semibold text-green uppercase px-1">This phone</h2>
+    <div class="card overflow-hidden">
+      <div class="row flex items-center gap-4 p-4 border-b border-border">
+        <span class="material-symbols-outlined text-muted">smartphone</span>
+        <span class="text-[15px] font-medium flex-grow">Phone name</span>
+        <span class="text-[14px] text-muted">Galaxy A14</span>
+        <span class="material-symbols-outlined text-muted">chevron_right</span>
+      </div>
+      <div class="row flex items-center gap-4 p-4">
+        <span class="material-symbols-outlined text-muted">key</span>
+        <span class="text-[15px] font-medium flex-grow">Pairing token</span>
+        <span class="text-[14px] text-muted">Not set</span>
+        <span class="material-symbols-outlined text-muted">chevron_right</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- Monitor quality -->
+  <section class="flex flex-col gap-3">
+    <h2 class="text-[12px] tracking-[0.12em] font-semibold text-green uppercase px-1">Monitor quality</h2>
+    <div class="card p-4">
+      <div class="seg flex p-1 rounded-xl">
+        <button class="seg-item flex-1 py-2 rounded-lg text-[14px] text-muted">Low</button>
+        <button class="seg-item active flex-1 py-2 rounded-lg text-[14px]">Medium</button>
+        <button class="seg-item flex-1 py-2 rounded-lg text-[14px] text-muted">High</button>
+      </div>
+      <p class="text-[13px] text-muted mt-4 px-1">Lower quality feels faster on weak Wi-Fi.</p>
+    </div>
+  </section>
+
+  <!-- Later features -->
+  <section class="flex flex-col gap-3">
+    <h2 class="text-[12px] tracking-[0.12em] font-semibold text-muted uppercase px-1">Later features</h2>
+    <div class="card overflow-hidden opacity-80">
+      <div class="flex items-center gap-4 p-4 border-b border-border">
+        <span class="material-symbols-outlined text-muted">public</span>
+        <div class="flex flex-col flex-grow">
+          <span class="text-[15px] font-medium">Connect over the internet</span>
+          <span class="text-[12px] text-muted">Use this phone away from home</span>
+        </div>
+        <span class="text-[11px] font-bold text-yellow bg-yellow/10 rounded-full px-2.5 py-1">Soon</span>
+      </div>
+      <div class="flex items-center gap-4 p-4">
+        <span class="material-symbols-outlined text-muted">qr_code_2</span>
+        <div class="flex flex-col flex-grow">
+          <span class="text-[15px] font-medium">Pair with a QR code</span>
+          <span class="text-[12px] text-muted">Connect without typing the address</span>
+        </div>
+        <span class="text-[11px] font-bold text-yellow bg-yellow/10 rounded-full px-2.5 py-1">Soon</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- About -->
+  <section class="flex flex-col gap-3">
+    <h2 class="text-[12px] tracking-[0.12em] font-semibold text-green uppercase px-1">About</h2>
+    <div class="card overflow-hidden">
+      <div class="row flex items-center gap-4 p-4 border-b border-border">
+        <span class="material-symbols-outlined text-muted">help</span>
+        <span class="text-[15px] font-medium flex-grow">How to connect</span>
+        <span class="material-symbols-outlined text-muted">chevron_right</span>
+      </div>
+      <div class="row flex items-center gap-4 p-4">
+        <span class="material-symbols-outlined text-muted">info</span>
+        <span class="text-[15px] font-medium flex-grow">Version</span>
+        <span class="text-[14px] text-muted">2.0</span>
+      </div>
+    </div>
+  </section>
+</main>
+
+<nav class="fixed bottom-0 w-full z-50 bg-surface border-t border-border flex justify-around items-center h-16">
+  <a class="flex flex-col items-center gap-0.5 text-muted" href="home.html">
+    <span class="material-symbols-outlined">home</span><span class="text-[11px]">Home</span>
+  </a>
+  <a class="flex flex-col items-center gap-0.5 text-muted" href="remote.html">
+    <span class="material-symbols-outlined">settings_remote</span><span class="text-[11px]">Remote</span>
+  </a>
+  <a class="flex flex-col items-center gap-0.5 text-muted" href="history.html">
+    <span class="material-symbols-outlined">history</span><span class="text-[11px]">History</span>
+  </a>
+  <a class="flex flex-col items-center gap-0.5 text-green" href="settings.html">
+    <span class="material-symbols-outlined fill">settings</span><span class="text-[11px] font-semibold">Settings</span>
+  </a>
+</nav>
+</body>
+</html>

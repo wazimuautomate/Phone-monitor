@@ -40,16 +40,19 @@ class CaptureService : Service() {
         const val EXTRA_HELPER_URL = "helperUrl"
         const val EXTRA_TOKEN = "token"
         const val EXTRA_REMOTE = "remote"
+        const val EXTRA_QUALITY = "quality"
         const val EXTRA_WIDTH = "width"
         const val EXTRA_HEIGHT = "height"
         const val EXTRA_DPI = "dpi"
 
         private const val CHANNEL_ID = "pm_capture"
         private const val NOTIF_ID = 1
-        private const val MAX_DIM = 900
-        private const val BIT_RATE = 3_000_000
         private const val FRAME_RATE = 30
     }
+
+    // Longest-side cap and bitrate, chosen by the "Monitor quality" setting.
+    private var maxDim = 900
+    private var bitRate = 3_000_000
 
     private var projection: MediaProjection? = null
     private var virtualDisplay: VirtualDisplay? = null
@@ -109,6 +112,7 @@ class CaptureService : Service() {
         val helperUrl = intent.getStringExtra(EXTRA_HELPER_URL).orEmpty()
         val token = intent.getStringExtra(EXTRA_TOKEN).orEmpty()
         remote = intent.getBooleanExtra(EXTRA_REMOTE, false)
+        applyQuality(intent.getStringExtra(EXTRA_QUALITY).orEmpty())
         val screenW = intent.getIntExtra(EXTRA_WIDTH, 1080)
         val screenH = intent.getIntExtra(EXTRA_HEIGHT, 1920)
         val dpi = intent.getIntExtra(EXTRA_DPI, 320)
@@ -137,7 +141,7 @@ class CaptureService : Service() {
             override fun onStop() = stopCapture()
         }, null)
 
-        val (w, h) = scale(screenW, screenH, MAX_DIM)
+        val (w, h) = scale(screenW, screenH, maxDim)
         CaptureState.set(CaptureState.CONNECTING, "Connecting to ${peer()}…")
         streamer = Streamer(
             helperUrl,
@@ -226,7 +230,7 @@ class CaptureService : Service() {
     private fun startEncoder(w: Int, h: Int, dpi: Int) {
         val format = MediaFormat.createVideoFormat(MediaFormat.MIMETYPE_VIDEO_AVC, w, h).apply {
             setInteger(MediaFormat.KEY_COLOR_FORMAT, MediaCodecInfo.CodecCapabilities.COLOR_FormatSurface)
-            setInteger(MediaFormat.KEY_BIT_RATE, BIT_RATE)
+            setInteger(MediaFormat.KEY_BIT_RATE, bitRate)
             setInteger(MediaFormat.KEY_FRAME_RATE, FRAME_RATE)
             setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, 1)
         }
@@ -378,6 +382,24 @@ class CaptureService : Service() {
     }
 
     private fun even(v: Int): Int = if (v % 2 == 0) v else v - 1
+
+    /** Map the "Monitor quality" choice to a longest-side cap and bitrate. */
+    private fun applyQuality(quality: String) {
+        when (quality) {
+            "low" -> {
+                maxDim = 720
+                bitRate = 2_000_000
+            }
+            "high" -> {
+                maxDim = 1280
+                bitRate = 6_000_000
+            }
+            else -> {
+                maxDim = 900
+                bitRate = 3_000_000
+            }
+        }
+    }
 
     private fun jsonStr(s: String?): String {
         val safe = (s ?: "").replace("\\", "\\\\").replace("\"", "\\\"")
