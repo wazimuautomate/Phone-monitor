@@ -26,9 +26,9 @@ import android.os.IBinder
 import android.os.Looper
 import android.os.PowerManager
 import android.provider.Settings
+import android.util.DisplayMetrics
 import android.view.Display
 import android.view.Surface
-import android.view.WindowManager
 import androidx.core.content.ContextCompat
 import org.json.JSONObject
 import java.nio.ByteBuffer
@@ -68,10 +68,13 @@ class CaptureService : Service() {
     // VirtualDisplay/encoder at the NEW size — a VirtualDisplay has fixed
     // bounds, so without this a rotated phone just letterboxes inside the old
     // portrait frame and the desktop never sees a landscape picture.
-    private var screenW = 1080
-    private var screenH = 1920
+    @Volatile private var screenW = 1080
+    @Volatile private var screenH = 1920
     private var screenDpi = 320
     private var displayListener: DisplayManager.DisplayListener? = null
+    private var drainThread: Thread? = null
+    private var rotationExec: ScheduledExecutorService? = null
+    private val rebuildLock = Any()
 
     private var projection: MediaProjection? = null
     private var virtualDisplay: VirtualDisplay? = null
@@ -275,7 +278,11 @@ class CaptureService : Service() {
 
         firstFrameSent = false
         running = true
-        thread(name = "pm-encoder") { drainLoop() }
+        // Tracked so a rotation rebuild can JOIN it before releasing the codec —
+        // releasing a MediaCodec while this thread sits in dequeueOutputBuffer
+        // takes the whole service down (which looked like "the phone
+        // disconnected when I rotated twice").
+        drainThread = thread(name = "pm-encoder") { drainLoop() }
     }
 
     private fun drainLoop() {
@@ -368,6 +375,7 @@ class CaptureService : Service() {
      * the desktop's decoder re-sizes itself automatically.
      */
     private fun watchRotation() {
+        if (rotationExec == null) rotationExec = Executors.newSingleThreadScheduledExecutor()
         if (displayListener != null) return
         val dm = getSystemService(Context.DISPLAY_SERVICE) as DisplayManager
         val listener = object : DisplayManager.DisplayListener {
@@ -375,7 +383,10 @@ class CaptureService : Service() {
             override fun onDisplayRemoved(displayId: Int) {}
             override fun onDisplayChanged(displayId: Int) {
                 if (displayId != Display.DEFAULT_DISPLAY) return
-                onDisplayResized()
+                // The metrics lag the event during the rotation animation, so
+                // check twice: once now, once after it settles.
+                scheduleRotationCheck(0)
+                scheduleRotationCheck(400)
             }
         }
         runCatching { dm.registerDisplayListener(listener, Handler(Looper.getMainLooper())) }
@@ -383,15 +394,25 @@ class CaptureService : Service() {
     }
 
     private fun stopWatchingRotation() {
-        val listener = displayListener ?: return
+        val listener = displayListener
         displayListener = null
-        runCatching {
-            (getSystemService(Context.DISPLAY_SERVICE) as DisplayManager).unregisterDisplayListener(listener)
+        if (listener != null) {
+            runCatching {
+                (getSystemService(Context.DISPLAY_SERVICE) as DisplayManager).unregisterDisplayListener(listener)
+            }
         }
+        runCatching { rotationExec?.shutdownNow() }
+        rotationExec = null
+    }
+
+    /** Never rebuild on the main thread — see [rebuildEncoder]. */
+    private fun scheduleRotationCheck(delayMs: Long) {
+        val exec = rotationExec ?: return
+        runCatching { exec.schedule({ runCatching { checkRotation() } }, delayMs, TimeUnit.MILLISECONDS) }
     }
 
     /** onDisplayChanged also fires for brightness etc., so only act on a real resize. */
-    private fun onDisplayResized() {
+    private fun checkRotation() {
         if (!running) return
         val (w, h) = realScreenSize() ?: return
         if (w == screenW && h == screenH) return
@@ -401,30 +422,51 @@ class CaptureService : Service() {
         rebuildEncoder(ew, eh)
     }
 
-    /** Swap the encoder + VirtualDisplay for new dimensions, keeping the socket. */
+    /**
+     * Swap the encoder + VirtualDisplay for new dimensions, keeping the socket
+     * (and therefore the desktop's tile) alive.
+     *
+     * Only ever called off the main thread, and it stops the drain loop and
+     * WAITS for that thread before releasing the codec: tearing a MediaCodec
+     * down underneath a thread blocked in dequeueOutputBuffer kills the process.
+     */
     private fun rebuildEncoder(w: Int, h: Int) {
-        running = false
-        runCatching { virtualDisplay?.release() }
-        runCatching { encoder?.stop() }
-        runCatching { encoder?.release() }
-        runCatching { inputSurface?.release() }
-        virtualDisplay = null
-        encoder = null
-        inputSurface = null
-        runCatching { startEncoder(w, h, screenDpi) }
+        synchronized(rebuildLock) {
+            running = false
+            runCatching { drainThread?.join(600) }
+            drainThread = null
+            runCatching { virtualDisplay?.release() }
+            runCatching { encoder?.stop() }
+            runCatching { encoder?.release() }
+            runCatching { inputSurface?.release() }
+            virtualDisplay = null
+            encoder = null
+            inputSurface = null
+            if (projection == null) return
+            // A fresh encoder emits a new codec-config frame, so the desktop's
+            // decoder re-sizes itself and the tile becomes landscape.
+            runCatching { startEncoder(w, h, screenDpi) }
+                .onFailure { CaptureState.set(CaptureState.ERROR, "Couldn’t follow the rotation") }
+        }
     }
 
+    /**
+     * The real display size, INCLUDING the current rotation (so it swaps w/h in
+     * landscape).
+     *
+     * Deliberately goes through DisplayManager rather than
+     * WindowManager.currentWindowMetrics: this is a Service (a non-visual
+     * context), where the window-metrics APIs are unreliable and can report the
+     * un-rotated bounds — which is exactly why rotation went undetected and the
+     * stream stayed portrait.
+     */
     private fun realScreenSize(): Pair<Int, Int>? = runCatching {
-        val wm = getSystemService(Context.WINDOW_SERVICE) as WindowManager
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            val b = wm.currentWindowMetrics.bounds
-            b.width() to b.height()
-        } else {
-            val m = android.util.DisplayMetrics()
-            @Suppress("DEPRECATION")
-            wm.defaultDisplay.getRealMetrics(m)
-            m.widthPixels to m.heightPixels
-        }
+        val dm = getSystemService(Context.DISPLAY_SERVICE) as DisplayManager
+        val display = dm.getDisplay(Display.DEFAULT_DISPLAY) ?: return@runCatching null
+        val m = DisplayMetrics()
+        @Suppress("DEPRECATION")
+        display.getRealMetrics(m)
+        if (m.widthPixels <= 0 || m.heightPixels <= 0) null else m.widthPixels to m.heightPixels
     }.getOrNull()
 
     /** The desktop's Rotate button only works if the user granted WRITE_SETTINGS. */
@@ -436,7 +478,12 @@ class CaptureService : Service() {
         val ex = Executors.newSingleThreadScheduledExecutor()
         statusTimer = ex
         ex.scheduleWithFixedDelay(
-            { runCatching { streamer?.sendStatus(buildStatus()) } },
+            {
+                runCatching { streamer?.sendStatus(buildStatus()) }
+                // Safety net: if a display event was ever missed, this notices the
+                // shape changed and rebuilds anyway (off the main thread already).
+                runCatching { checkRotation() }
+            },
             5, 10, TimeUnit.SECONDS,
         )
     }
@@ -543,6 +590,8 @@ class CaptureService : Service() {
         firstFrameSent = false
         stopStatusUpdates()
         stopWatchingRotation()
+        runCatching { drainThread?.join(600) }
+        drainThread = null
         runCatching { virtualDisplay?.release() }
         runCatching { encoder?.stop() }
         runCatching { encoder?.release() }

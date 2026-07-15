@@ -5,6 +5,17 @@ Newest first. One entry per work session: what was done, decisions made, and wha
 
 ---
 
+## 2026-07-15 — Rotation: why it "never worked" (two independent bugs)
+
+Client: rotate turns the phone but the desktop stays portrait, and **rotating twice disconnects the phone**. Both were real, and neither was the button.
+
+1. **Detection never fired.** `CaptureService` used `WindowManager.currentWindowMetrics` to read the display size. That's a *visual-context* API; from a Service it's unreliable and returns the **un-rotated** bounds, so `w/h` never appeared to swap → the VirtualDisplay was never rebuilt → the desktop kept getting a portrait frame with the landscape picture letterboxed inside it (exactly what the client's screenshot showed). **Fix:** read via `DisplayManager.getDisplay(DEFAULT_DISPLAY).getRealMetrics()` — honours rotation from any context. Plus a 0ms+400ms debounce (metrics lag the rotation animation) and a re-check on the 10s status tick so a missed display event self-heals.
+2. **The rebuild crashed the service.** It released the `MediaCodec` from the main thread while the `pm-encoder` drain thread was parked in `dequeueOutputBuffer` → native abort → service dies → "phone disconnected". **Fix:** rebuild on its own executor, `running=false` then **join the drain thread** before releasing, all behind a lock. `drainThread` is now tracked; teardown joins it too.
+
+**Key insight for next time:** the desktop needed NO change — it already sizes the card/stage from the decoded frame (`PhoneScreen` sets `aspect-ratio` from `VideoFrame.displayWidth/Height`, and a rebuilt encoder emits a fresh codec-config so the decoder re-sizes itself). The UI was starved of landscape frames, not broken. Don't go looking in the renderer for this class of bug.
+
+---
+
 ## 2026-07-15 — Desktop app v3: complete UI redesign (sidebar shell + Control Room)
 
 Client: "the desktop UI is very bad with limited features — complete fresh redesign, use the mobile app's colour theme." Rebuilt `web/` from scratch (old layout deliberately discarded); helper/Electron/agent extended to feed it real data.
