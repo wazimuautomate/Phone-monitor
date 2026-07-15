@@ -60,5 +60,11 @@ jobs:
               --title "Phone Monitor (latest build)" \
               --notes "Auto-built APK from the latest push. Install on Tier-2 phones." \
               --prerelease
+          # Drop the asset we're about to replace. --clobber alone intermittently
+          # loses a race and fails the whole build with
+          # "HTTP 422: ReleaseAsset.name already exists" — after the APK has
+          # already built fine. Delete first, then upload.
+          gh release delete-asset capture-latest phone-monitor.apk -y || true
+          # Legacy name from older builds; harmless once it's gone.
           gh release delete-asset capture-latest phone-monitor-capture.apk -y || true
           gh release upload capture-latest phone-monitor.apk --clobber
