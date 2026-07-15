@@ -5,6 +5,20 @@ Newest first. One entry per work session: what was done, decisions made, and wha
 
 ---
 
+## 2026-07-15 — CRITICAL: app died when granting "Entire screen" (Android 16)
+
+Client's Android 16 phone: tap Connect → consent dialog → "Entire screen" → **app dies instantly**. Never reproduced on the owner's SM-A055F (Android 13/14).
+
+**Cause:** `beginCapture()` called `requestBatteryExemption()` (which `startActivity`s the battery Settings screen) and `ensureNotificationPermission()` **immediately before** `captureLauncher.launch(consent)`. So when the consent result came back, our Activity was **not in the foreground** → `ContextCompat.startForegroundService()` → **`ForegroundServiceStartNotAllowedException`** → process death, precisely on "Entire screen". Android tightened background-FGS starts 12 → 14 → 16, hence it only bit on the client's 16.
+
+**Fixes:** nothing else is launched during the consent flow (notifications asked at app start; battery prompt 1.5s *after* the capture is live); `onStartCommand` + `startForegroundService` are wrapped so a failure shows "Couldn't start monitoring: <reason>" instead of crashing; MediaProjection callback registered on a real Handler; `START_NOT_STICKY` (a sticky restart has no consent token and can't call startForeground in time = another crash).
+
+**Also added a crash recorder** (`App.installCrashRecorder`): uncaught exceptions are `commit()`ed to prefs and shown on next launch with Copy details. Field phones have no adb — this is how we get the real reason next time instead of "it stopped".
+
+**Kept targetSdk 34 deliberately**: targeting 35/36 opts into *stricter* MediaProjection/FGS rules. Don't bump it to "support Android 16" — 34 is the lenient path and 16 runs it fine.
+
+---
+
 ## 2026-07-15 — Rotation, round 3: the rebuild itself was killing the connection
 
 **NEVER release the VirtualDisplay to resize it.** On Android 14+ releasing it ends the MediaProjection session → `MediaProjection.Callback.onStop()` → our `stopCapture()` → streamer closes → the desktop sees "phone disconnected". My round-2 "fix" (release + recreate at the new size) *was* the disconnect the client reported.

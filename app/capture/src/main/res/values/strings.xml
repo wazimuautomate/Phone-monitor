@@ -116,6 +116,9 @@
     <string name="save">Save</string>
     <string name="cancel">Cancel</string>
     <string name="rename_title">Phone name</string>
+    <string name="crash_title">The app closed unexpectedly</string>
+    <string name="crash_copy">Copy details</string>
+    <string name="crash_copied">Copied — send this to support</string>
     <string name="need_address">Enter a desktop address on the Remote tab first.</string>
 
     <!-- Accessibility service (referenced by manifest + service config) -->

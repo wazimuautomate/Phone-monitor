@@ -127,10 +127,28 @@ class CaptureService : Service() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         if (intent == null) {
+            // Restarted by the system with no consent token — there is nothing we
+            // can capture, so go away quietly rather than sit here half-alive.
             stopSelf()
             return START_NOT_STICKY
         }
+        // Anything thrown here would kill the app in the user's hands (and the
+        // MediaProjection rules differ across Android 14/15/16). Fail loudly in
+        // the UI instead, with the real reason attached.
+        return try {
+            beginCapture(intent)
+        } catch (t: Throwable) {
+            CaptureState.set(
+                CaptureState.ERROR,
+                "Couldn’t start monitoring: ${t.javaClass.simpleName}${t.message?.let { " — $it" } ?: ""}",
+            )
+            runCatching { teardownCapture() }
+            stopSelf()
+            START_NOT_STICKY
+        }
+    }
 
+    private fun beginCapture(intent: Intent): Int {
         startForegroundCompat("Starting…")
         acquireWakeLock()
 
@@ -164,9 +182,14 @@ class CaptureService : Service() {
             return START_NOT_STICKY
         }
         projection = mp
-        mp.registerCallback(object : MediaProjection.Callback() {
-            override fun onStop() = stopCapture()
-        }, null)
+        // Android 14+ REQUIRES a callback registered before createVirtualDisplay.
+        // Give it a real Handler rather than relying on the calling thread's looper.
+        mp.registerCallback(
+            object : MediaProjection.Callback() {
+                override fun onStop() = stopCapture()
+            },
+            Handler(Looper.getMainLooper()),
+        )
 
         val (w, h) = scale(screenW, screenH, maxDim)
         CaptureState.set(CaptureState.CONNECTING, "Connecting to ${peer()}…")
@@ -183,7 +206,7 @@ class CaptureService : Service() {
         startStatusUpdates()
         watchRotation()
 
-        return START_STICKY
+        return START_NOT_STICKY
     }
 
     /**

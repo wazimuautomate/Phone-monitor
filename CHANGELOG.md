@@ -7,6 +7,12 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this pr
 
 ### Desktop app v3 — complete UI redesign (sidebar shell + Control Room)
 
+#### Fixed (client review round 4 — CRITICAL)
+- **The app died the instant the user granted "Entire screen"** (seen on the client's Android 16). `beginCapture()` opened the **battery-optimisation Settings screen** and only *then* launched the screen-capture consent. That leaves the app in the **background** when the consent result arrives — and `startForegroundService()` from the background throws `ForegroundServiceStartNotAllowedException`, killing the process at exactly that moment. Android has tightened this rule from 12 → 14 → 16, which is why it survived on Android 13/14 handsets and died on the client's 16. **Nothing else is launched during the consent flow now**: notifications are requested at app start, and the battery prompt happens *after* the capture is live.
+- **The start path can no longer hard-crash.** `onStartCommand` is wrapped: any failure (the MediaProjection rules differ across 14/15/16) is reported in the UI as "Couldn't start monitoring: <reason>" instead of taking the app down. `startForegroundService()` is guarded the same way.
+- **Crash reporter.** A phone in someone else's hands can't be plugged into adb, and "it just closed" is not a bug report. Uncaught exceptions are now saved and shown on the next launch with a **Copy details** button.
+- The MediaProjection callback is registered on a real `Handler` (Android 14+ requires it before `createVirtualDisplay`), and the service is `START_NOT_STICKY` — a sticky restart has no consent token and could never call `startForeground()` in time, which is a crash of its own.
+
 #### Fixed (client review round 3)
 - **Rotating disconnected the phone — the real cause.** The rotation rebuild *released the VirtualDisplay* to recreate it at the new size. On Android 14+ releasing the VirtualDisplay **ends the MediaProjection session**, which fires `MediaProjection.Callback.onStop()` → `stopCapture()` → the streamer closes its socket. From the desktop that is indistinguishable from the phone dropping — so the rebuild meant to *follow* the rotation was itself killing the connection. The capture now **keeps its one VirtualDisplay for the whole session** and simply re-points it: `setSurface(null)` → build the new encoder → `resize(w, h, dpi)` → `setSurface(new)`, then release the old codec. Same trick scrcpy uses. The projection is only ever released on a real stop.
 

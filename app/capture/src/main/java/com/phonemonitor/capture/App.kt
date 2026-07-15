@@ -3,15 +3,39 @@ package com.phonemonitor.capture
 import android.app.Application
 import android.content.Context
 import androidx.appcompat.app.AppCompatDelegate
+import java.io.PrintWriter
+import java.io.StringWriter
 
 /**
  * Applies the user's saved theme choice (System / Light / Dark) app-wide, before
- * any activity is created, so there's no flash of the wrong theme on launch.
+ * any activity is created, so there's no flash of the wrong theme on launch, and
+ * records any crash so it can be shown on the next launch.
  */
 class App : Application() {
     override fun onCreate() {
         super.onCreate()
+        installCrashRecorder()
         applySavedTheme(this)
+    }
+
+    /**
+     * Remember why the app died. Phones in the field are the only place some of
+     * this can happen, and "it just closed" is not a bug report — this turns the
+     * next launch into one, with no cable or adb needed.
+     */
+    private fun installCrashRecorder() {
+        val previous = Thread.getDefaultUncaughtExceptionHandler()
+        Thread.setDefaultUncaughtExceptionHandler { thread, error ->
+            runCatching {
+                val stack = StringWriter().also { error.printStackTrace(PrintWriter(it)) }.toString()
+                getSharedPreferences("pm", Context.MODE_PRIVATE)
+                    .edit()
+                    .putString("lastCrash", "${error.javaClass.name}: ${error.message}\n\n${stack.take(2500)}")
+                    // commit(), not apply() — this process is about to die.
+                    .commit()
+            }
+            previous?.uncaughtException(thread, error)
+        }
     }
 
     companion object {

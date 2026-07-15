@@ -2,6 +2,8 @@ package com.phonemonitor.capture
 
 import android.accessibilityservice.AccessibilityServiceInfo
 import android.app.Activity
+import android.content.ClipData
+import android.content.ClipboardManager
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
@@ -98,7 +100,13 @@ class MainActivity : AppCompatActivity() {
         renderQuality(currentQuality())
 
         // Cold start only — not on rotation or a theme-driven recreate.
-        if (savedInstanceState == null) playSplash()
+        if (savedInstanceState == null) {
+            playSplash()
+            // Asked here, NOT during the connect flow: a dialog racing the
+            // screen-capture consent is what backgrounded us at the worst moment.
+            ensureNotificationPermission()
+            showLastCrashIfAny()
+        }
     }
 
     override fun onResume() {
@@ -205,6 +213,27 @@ class MainActivity : AppCompatActivity() {
         CaptureState.set(CaptureState.IDLE, "Stopped")
     }
 
+    /**
+     * If the app died last time, show why and let the user copy it. Beats
+     * "it just closed" when the phone is in someone else's hands.
+     */
+    private fun showLastCrashIfAny() {
+        val crash = prefs.getString("lastCrash", null)?.takeIf { it.isNotBlank() } ?: return
+        prefs.edit().remove("lastCrash").apply()
+        AlertDialog.Builder(this)
+            .setTitle(R.string.crash_title)
+            .setMessage(crash)
+            .setPositiveButton(R.string.crash_copy) { _, _ ->
+                runCatching {
+                    val cm = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                    cm.setPrimaryClip(ClipData.newPlainText("Phone Monitor crash", crash))
+                    Toast.makeText(this, R.string.crash_copied, Toast.LENGTH_SHORT).show()
+                }
+            }
+            .setNegativeButton(R.string.cancel, null)
+            .show()
+    }
+
     private fun renamePhone() {
         val input = EditText(this).apply {
             setText(deviceName())
@@ -280,8 +309,11 @@ class MainActivity : AppCompatActivity() {
         pendingUrl = url
         pendingToken = token
         pendingRemote = remote
-        ensureNotificationPermission()
-        requestBatteryExemption()
+        // Ask for NOTHING else here. Opening another screen (battery settings, a
+        // permission dialog) can leave us in the background when the consent
+        // result arrives, and startForegroundService() from the background throws
+        // ForegroundServiceStartNotAllowedException — the app dies the instant the
+        // user taps "Entire screen". Those prompts now happen once we're live.
         CaptureState.set(CaptureState.CONNECTING, "Requesting permission…")
         captureLauncher.launch(projectionManager.createScreenCaptureIntent())
     }
@@ -761,10 +793,25 @@ class MainActivity : AppCompatActivity() {
             putExtra(CaptureService.EXTRA_HEIGHT, metrics.heightPixels)
             putExtra(CaptureService.EXTRA_DPI, metrics.densityDpi)
         }
-        ContextCompat.startForegroundService(this, intent)
+        // Starting a foreground service can be refused (e.g. we somehow aren't in
+        // the foreground any more). Report it instead of letting it kill the app
+        // in front of whoever is watching.
+        try {
+            ContextCompat.startForegroundService(this, intent)
+        } catch (e: Exception) {
+            CaptureState.set(
+                CaptureState.ERROR,
+                "Couldn’t start monitoring: ${e.javaClass.simpleName}. Reopen the app and try again.",
+            )
+            return
+        }
         CaptureState.set(
             CaptureState.CONNECTING,
             if (pendingRemote) "Connecting to relay…" else "Connecting to helper…",
         )
+
+        // Now that the capture is live it's safe to send the user elsewhere; doing
+        // this BEFORE the consent is what used to background us at the worst moment.
+        binding.root.postDelayed({ if (!isFinishing && !isDestroyed) requestBatteryExemption() }, 1500)
     }
 }
