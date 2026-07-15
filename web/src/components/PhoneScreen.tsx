@@ -5,24 +5,41 @@ import { videoBus, type VideoFrameMsg } from "../lib/video-bus";
 /**
  * Renders a phone's screen. If a live H.264 stream is arriving for this device
  * it is decoded via WebCodecs onto a canvas; otherwise a synthetic placeholder
- * screen is shown so the layout matches the real product (and demo devices work).
+ * is shown so the layout matches the real product (and demo devices work).
  */
 interface PhoneScreenProps {
   device: Device;
-  /** Larger layout variant used by the focused control view. */
-  large?: boolean;
+  /** Fills its container instead of using the phone aspect ratio. */
+  fill?: boolean;
+  showFps?: boolean;
   /** Reports the intrinsic (decoded) video dimensions when they change. */
   onVideoSize?: (w: number, h: number) => void;
+  /** Hands out the canvas so callers can screenshot / record exactly what's drawn. */
+  onCanvas?: (canvas: HTMLCanvasElement | null) => void;
+  children?: React.ReactNode;
 }
 
-export function PhoneScreen({ device, large, onVideoSize }: PhoneScreenProps) {
+export function PhoneScreen({
+  device,
+  fill,
+  showFps,
+  onVideoSize,
+  onCanvas,
+  children,
+}: PhoneScreenProps) {
   const [hasVideo, setHasVideo] = useState(false);
   const onFirstFrame = useCallback(() => setHasVideo(true), []);
   return (
-    <div className={`screen ${large ? "large" : ""}`}>
-      <LiveScreen deviceId={device.id} onFirstFrame={onFirstFrame} onVideoSize={onVideoSize} />
+    <div className={`screen ${fill ? "fill" : ""}`}>
+      <LiveScreen
+        deviceId={device.id}
+        onFirstFrame={onFirstFrame}
+        onVideoSize={onVideoSize}
+        onCanvas={onCanvas}
+      />
       {!hasVideo && <MockScreen device={device} />}
-      <span className="fps-badge">{device.fps ?? 0} fps</span>
+      {showFps && <span className="fps-badge">{device.fps ?? 0} fps</span>}
+      {children}
     </div>
   );
 }
@@ -31,15 +48,24 @@ function LiveScreen({
   deviceId,
   onFirstFrame,
   onVideoSize,
+  onCanvas,
 }: {
   deviceId: string;
   onFirstFrame: () => void;
   onVideoSize?: (w: number, h: number) => void;
+  onCanvas?: (canvas: HTMLCanvasElement | null) => void;
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  // Keep the latest size callback without re-subscribing the decoder.
+  // Keep the latest callbacks without re-subscribing the decoder.
   const onVideoSizeRef = useRef(onVideoSize);
   onVideoSizeRef.current = onVideoSize;
+  const onCanvasRef = useRef(onCanvas);
+  onCanvasRef.current = onCanvas;
+
+  useEffect(() => {
+    onCanvasRef.current?.(canvasRef.current);
+    return () => onCanvasRef.current?.(null);
+  }, [deviceId]);
 
   useEffect(() => {
     const w = window as unknown as {
@@ -145,23 +171,23 @@ function MockScreen({ device }: { device: Device }) {
 
   return (
     <div
-      className="mock-screen"
+      className="mock"
       style={{ background: `linear-gradient(160deg, hsl(${hue} 45% 24%), hsl(${(hue + 40) % 360} 55% 12%))` }}
     >
-      <div className="mock-statusbar">
+      <div className="mock-bar">
         <span>
           {hh}:{mm}
         </span>
-        <span className="mock-icons">▮▮▮</span>
+        <span>▮▮▮</span>
       </div>
-      <div className="mock-clock">
+      <div className="mock-mid">
         <div className="mock-time">
           {hh}:{mm}
         </div>
         <div className="mock-date">{date}</div>
       </div>
-      <div className="mock-badge">
-        {device.tier === "view" ? "Tier 2 · view only" : "Tier 1 · control"} · awaiting stream
+      <div className="mock-note">
+        {device.id.startsWith("mock-") ? "Demo phone" : "Waiting for the screen…"}
       </div>
     </div>
   );

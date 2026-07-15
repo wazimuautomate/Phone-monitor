@@ -7,6 +7,7 @@ import type {
   DeviceSource,
   SourceEventHandler,
 } from "./types.js";
+import { bars, netType, phoneName, statusPatch } from "./phone-fields.js";
 
 let fallbackCounter = 0;
 
@@ -146,10 +147,15 @@ export class WifiAppSource implements DeviceSource {
 
       const info: DeviceInfo = {
         id,
-        name: (msg.model as string) || "Phone",
+        // The phone's own "Phone name" wins, so renaming on the handset shows up
+        // here; otherwise fall back to the model.
+        name: phoneName(msg) ?? (msg.model as string) ?? "Phone",
         model: msg.model as string | undefined,
         androidVersion: msg.androidVersion as string | undefined,
         battery: typeof msg.battery === "number" ? msg.battery : undefined,
+        charging: typeof msg.charging === "boolean" ? msg.charging : undefined,
+        signal: bars(msg.signal),
+        network: netType(msg.network),
         tier: "view",
         connection: "wifi-app",
         status: "online",
@@ -173,14 +179,11 @@ export class WifiAppSource implements DeviceSource {
       const id = currentId;
       if (id) {
         const dev = this.devices.get(id);
-        if (dev && typeof msg.screenLocked === "boolean") {
-          dev.screenLocked = msg.screenLocked;
+        const patch = statusPatch(msg);
+        if (dev && Object.keys(patch).length > 0) {
+          Object.assign(dev, patch);
           dev.lastUpdate = Date.now();
-          this.emit?.({
-            kind: "stats",
-            deviceId: id,
-            patch: { screenLocked: msg.screenLocked, lastUpdate: dev.lastUpdate },
-          });
+          this.emit?.({ kind: "stats", deviceId: id, patch: { ...patch, lastUpdate: dev.lastUpdate } });
         }
       }
     }

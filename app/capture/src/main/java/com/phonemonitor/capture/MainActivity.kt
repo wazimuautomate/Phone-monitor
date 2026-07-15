@@ -19,7 +19,9 @@ import android.provider.Settings
 import android.text.TextUtils
 import android.util.DisplayMetrics
 import android.view.View
+import android.view.ViewGroup
 import android.view.accessibility.AccessibilityManager
+import android.view.animation.OvershootInterpolator
 import android.widget.EditText
 import android.widget.TextView
 import android.widget.Toast
@@ -30,6 +32,7 @@ import androidx.appcompat.app.AppCompatDelegate
 import androidx.core.content.ContextCompat
 import com.google.android.material.button.MaterialButton
 import com.phonemonitor.capture.databinding.ActivityMainBinding
+import com.phonemonitor.capture.databinding.ViewSplashBinding
 import org.json.JSONArray
 import org.json.JSONObject
 import java.net.Inet4Address
@@ -93,6 +96,9 @@ class MainActivity : AppCompatActivity() {
         renderDeviceInfo()
         renderTheme(currentTheme())
         renderQuality(currentQuality())
+
+        // Cold start only — not on rotation or a theme-driven recreate.
+        if (savedInstanceState == null) playSplash()
     }
 
     override fun onResume() {
@@ -110,6 +116,50 @@ class MainActivity : AppCompatActivity() {
         super.onPause()
         CaptureState.listener = null
         CaptureState.codeListener = null
+    }
+
+    // ---- Splash ----
+
+    /**
+     * Cold-start splash: the app icon springs in over the themed background, the
+     * name follows, then the whole overlay dissolves to reveal the UI already
+     * built underneath. Drawn into the content root so it needs no second
+     * activity and no splash theme — and it removes itself when done.
+     */
+    private fun playSplash() {
+        val root = findViewById<ViewGroup>(android.R.id.content)
+        val splash = ViewSplashBinding.inflate(layoutInflater, root, false)
+        root.addView(splash.root)
+
+        val logo = splash.splashLogo
+        val name = splash.splashName
+
+        logo.alpha = 0f
+        logo.scaleX = 0.72f
+        logo.scaleY = 0.72f
+        name.alpha = 0f
+        name.translationY = 12f * resources.displayMetrics.density
+
+        logo.animate()
+            .alpha(1f).scaleX(1f).scaleY(1f)
+            .setDuration(460)
+            .setInterpolator(OvershootInterpolator(1.6f))
+            .start()
+        name.animate()
+            .alpha(1f).translationY(0f)
+            .setStartDelay(160)
+            .setDuration(320)
+            .start()
+
+        splash.root.postDelayed({
+            if (isFinishing || isDestroyed) return@postDelayed
+            logo.animate().scaleX(1.08f).scaleY(1.08f).setDuration(280).start()
+            splash.root.animate()
+                .alpha(0f)
+                .setDuration(280)
+                .withEndAction { root.removeView(splash.root) }
+                .start()
+        }, 900L)
     }
 
     // ---- Navigation ----
@@ -470,6 +520,7 @@ class MainActivity : AppCompatActivity() {
 
         s.setRemoteRow.setOnClickListener { openAccessibilitySettings() }
         s.setBatteryRow.setOnClickListener { requestBatteryExemption() }
+        s.setRotateRow.setOnClickListener { requestWriteSettings() }
         s.setNotifRow.setOnClickListener { onNotifRow() }
         s.setNameRow.setOnClickListener { renamePhone() }
         s.setHowRow.setOnClickListener { binding.bottomNav.selectedItemId = R.id.nav_home }
@@ -527,6 +578,7 @@ class MainActivity : AppCompatActivity() {
     private fun renderPermissions() {
         renderChip(binding.pageSettings.setRemoteChip, isControlEnabled())
         renderChip(binding.pageSettings.setBatteryChip, isIgnoringBattery())
+        renderChip(binding.pageSettings.setRotateChip, canWriteSettings())
         renderChip(binding.pageSettings.setNotifChip, notificationsEnabled())
         val active = CaptureState.state == CaptureState.STREAMING || CaptureState.state == CaptureState.CONNECTING
         renderChip(binding.pageSettings.setScreenChip, active)
@@ -542,6 +594,17 @@ class MainActivity : AppCompatActivity() {
     private fun isIgnoringBattery(): Boolean {
         val pm = getSystemService(Context.POWER_SERVICE) as PowerManager
         return pm.isIgnoringBatteryOptimizations(packageName)
+    }
+
+    /** WRITE_SETTINGS — only used for the desktop's "rotate" control. */
+    private fun canWriteSettings(): Boolean = runCatching { Settings.System.canWrite(this) }.getOrDefault(false)
+
+    private fun requestWriteSettings() {
+        runCatching {
+            startActivity(
+                Intent(Settings.ACTION_MANAGE_WRITE_SETTINGS, Uri.parse("package:$packageName")),
+            )
+        }
     }
 
     private fun notificationsEnabled(): Boolean =

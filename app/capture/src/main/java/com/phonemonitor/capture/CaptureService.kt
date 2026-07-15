@@ -16,6 +16,9 @@ import android.media.MediaCodecInfo
 import android.media.MediaFormat
 import android.media.projection.MediaProjection
 import android.media.projection.MediaProjectionManager
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
+import android.net.wifi.WifiManager
 import android.os.BatteryManager
 import android.os.Build
 import android.os.IBinder
@@ -25,6 +28,9 @@ import android.view.Surface
 import androidx.core.content.ContextCompat
 import org.json.JSONObject
 import java.nio.ByteBuffer
+import java.util.concurrent.Executors
+import java.util.concurrent.ScheduledExecutorService
+import java.util.concurrent.TimeUnit
 import kotlin.concurrent.thread
 
 /**
@@ -60,6 +66,7 @@ class CaptureService : Service() {
     private var inputSurface: Surface? = null
     private var streamer: Streamer? = null
     private var wakeLock: PowerManager.WakeLock? = null
+    private var statusTimer: ScheduledExecutorService? = null
 
     @Volatile private var running = false
     @Volatile private var firstFrameSent = false
@@ -153,6 +160,7 @@ class CaptureService : Service() {
             onMessage = { text -> onControlMessage(text) },
         ).also { it.start() }
         startEncoder(w, h, dpi)
+        startStatusUpdates()
 
         return START_STICKY
     }
@@ -284,15 +292,100 @@ class CaptureService : Service() {
         }
     }
 
-    private fun buildHello(screenW: Int, screenH: Int): String =
-        """{"type":"hello",""" +
-            // Stable per-device id (ANDROID_ID) so the desktop keeps ONE tile
-            // across reconnects instead of spawning a phantom duplicate.
-            """"deviceId":${jsonStr(androidId())},""" +
-            """"model":${jsonStr(Build.MODEL)},""" +
-            """"manufacturer":${jsonStr(Build.MANUFACTURER)},""" +
-            """"androidVersion":${jsonStr(Build.VERSION.RELEASE)},""" +
-            """"width":$screenW,"height":$screenH,"battery":${batteryPercent()},"screenLocked":false}"""
+    private fun buildHello(screenW: Int, screenH: Int): String {
+        val (net, bars) = networkState()
+        val sb = StringBuilder()
+        sb.append("""{"type":"hello",""")
+        // Stable per-device id (ANDROID_ID) so the desktop keeps ONE tile
+        // across reconnects instead of spawning a phantom duplicate.
+        sb.append(""""deviceId":${jsonStr(androidId())},""")
+        // The name the user set in the app (Settings → Phone name); the desktop
+        // shows it, so renaming on the handset syncs across.
+        sb.append(""""name":${jsonStr(displayName())},""")
+        sb.append(""""model":${jsonStr(Build.MODEL)},""")
+        sb.append(""""manufacturer":${jsonStr(Build.MANUFACTURER)},""")
+        sb.append(""""androidVersion":${jsonStr(Build.VERSION.RELEASE)},""")
+        sb.append(""""width":$screenW,"height":$screenH,""")
+        sb.append(""""battery":${batteryPercent()},"charging":${isCharging()},""")
+        sb.append(""""network":${jsonStr(net)},""")
+        if (bars != null) sb.append(""""signal":$bars,""")
+        sb.append(""""screenLocked":false}""")
+        return sb.toString()
+    }
+
+    /** Live stats the desktop shows: battery, charging, signal bars, and the name. */
+    private fun buildStatus(): String {
+        val (net, bars) = networkState()
+        val sb = StringBuilder()
+        sb.append("""{"type":"status",""")
+        sb.append(""""battery":${batteryPercent()},"charging":${isCharging()},""")
+        sb.append(""""name":${jsonStr(displayName())},""")
+        sb.append(""""network":${jsonStr(net)}""")
+        if (bars != null) sb.append(""","signal":$bars""")
+        sb.append("}")
+        return sb.toString()
+    }
+
+    /** Push battery / charging / signal / name to the desktop every 10s. */
+    private fun startStatusUpdates() {
+        stopStatusUpdates()
+        val ex = Executors.newSingleThreadScheduledExecutor()
+        statusTimer = ex
+        ex.scheduleWithFixedDelay(
+            { runCatching { streamer?.sendStatus(buildStatus()) } },
+            5, 10, TimeUnit.SECONDS,
+        )
+    }
+
+    private fun stopStatusUpdates() {
+        runCatching { statusTimer?.shutdownNow() }
+        statusTimer = null
+    }
+
+    private fun displayName(): String =
+        getSharedPreferences("pm", MODE_PRIVATE).getString("deviceName", null)
+            ?.takeIf { it.isNotBlank() } ?: Build.MODEL
+
+    private fun isCharging(): Boolean = runCatching {
+        val bm = getSystemService(Context.BATTERY_SERVICE) as BatteryManager
+        bm.isCharging
+    }.getOrDefault(false)
+
+    /** The phone's uplink and its signal bars (0..4), or null bars if unknown. */
+    private fun networkState(): Pair<String, Int?> = runCatching {
+        val cm = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+        val active = cm.activeNetwork ?: return@runCatching "none" to null
+        val caps = cm.getNetworkCapabilities(active) ?: return@runCatching "none" to null
+        when {
+            caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) -> "wifi" to wifiBars()
+            caps.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) -> "cell" to cellBars(caps)
+            else -> "none" to null
+        }
+    }.getOrDefault("none" to null)
+
+    @Suppress("DEPRECATION")
+    private fun wifiBars(): Int? = runCatching {
+        val wm = applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
+        WifiManager.calculateSignalLevel(wm.connectionInfo.rssi, 5)
+    }.getOrNull()
+
+    /**
+     * Cellular bars WITHOUT the READ_PHONE_STATE permission: NetworkCapabilities
+     * carries the signal strength on Android 10+. When it isn't available we
+     * report nothing rather than a misleading zero.
+     */
+    private fun cellBars(caps: NetworkCapabilities): Int? {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return null
+        val dbm = runCatching { caps.signalStrength }.getOrNull() ?: return null
+        if (dbm == Int.MIN_VALUE || dbm >= 0) return null
+        return when {
+            dbm >= -85 -> 4
+            dbm >= -95 -> 3
+            dbm >= -105 -> 2
+            dbm >= -115 -> 1
+            else -> 0
+        }
+    }
 
     @Suppress("HardwareIds")
     private fun androidId(): String =
@@ -344,6 +437,7 @@ class CaptureService : Service() {
     private fun teardownCapture() {
         running = false
         firstFrameSent = false
+        stopStatusUpdates()
         runCatching { virtualDisplay?.release() }
         runCatching { encoder?.stop() }
         runCatching { encoder?.release() }

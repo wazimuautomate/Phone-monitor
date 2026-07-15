@@ -7,6 +7,9 @@ export type Tier = "control" | "view";
 /** How a device is connected. */
 export type ConnectionType = "wifi-adb" | "usb-adb" | "wifi-app" | "internet-app";
 
+/** The phone's own uplink, as the phone reports it. */
+export type NetworkType = "wifi" | "cell" | "none";
+
 export type DeviceStatus = "online" | "connecting" | "offline";
 
 export interface DeviceInfo {
@@ -23,6 +26,10 @@ export interface DeviceInfo {
   lastUpdate?: number; // epoch ms
   screenLocked?: boolean;
   group?: string;
+  /** Signal bars 0..4, as reported by the phone. Undefined = not reported. */
+  signal?: number;
+  /** The phone's uplink (wifi / cell). Undefined = not reported. */
+  network?: NetworkType;
   width?: number; // captured screen width in px (for coordinate mapping)
   height?: number; // captured screen height in px
   controllable?: boolean; // device accepts remote-control commands
@@ -33,10 +40,22 @@ export interface DeviceInfo {
  * Coordinates are normalized floats in [0,1], origin top-left (x right, y down),
  * so they are resolution-independent; the device maps them to real pixels.
  */
+export type ControlKey =
+  | "back"
+  | "home"
+  | "recents"
+  | "notifications"
+  | "power"
+  | "volup"
+  | "voldown"
+  | "lock";
+
 export type ControlCmd =
   | { action: "tap"; x: number; y: number }
   | { action: "swipe"; x1: number; y1: number; x2: number; y2: number; ms?: number }
-  | { action: "key"; key: "back" | "home" | "recents" | "notifications" | "power" | "volup" | "voldown" }
+  | { action: "key"; key: ControlKey }
+  // Toggle the phone between portrait and landscape.
+  | { action: "rotate" }
   | { action: "text"; text: string };
 
 /** An encoded H.264 packet headed for the browser (decoded via WebCodecs). */

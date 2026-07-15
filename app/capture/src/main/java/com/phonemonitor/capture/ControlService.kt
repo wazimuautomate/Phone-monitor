@@ -8,7 +8,9 @@ import android.graphics.Path
 import android.media.AudioManager
 import android.os.Build
 import android.os.Bundle
+import android.provider.Settings
 import android.util.DisplayMetrics
+import android.view.Surface
 import android.view.WindowManager
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
@@ -59,6 +61,7 @@ class ControlService : AccessibilityService() {
                 "tap" -> tap(cmd.x, cmd.y)
                 "swipe" -> swipe(cmd.x1, cmd.y1, cmd.x2, cmd.y2, cmd.ms)
                 "key" -> key(cmd.key)
+                "rotate" -> rotate()
                 "text" -> text(cmd.text)
             }
         }
@@ -107,9 +110,35 @@ class ControlService : AccessibilityService() {
             "recents" -> performGlobalAction(GLOBAL_ACTION_RECENTS)
             "notifications" -> performGlobalAction(GLOBAL_ACTION_NOTIFICATIONS)
             "power" -> performGlobalAction(GLOBAL_ACTION_POWER_DIALOG)
+            "lock" -> lockScreen()
             "voldown" -> adjustVolume(AudioManager.ADJUST_LOWER)
             "volup" -> adjustVolume(AudioManager.ADJUST_RAISE)
         }
+    }
+
+    /** Lock the screen. Android exposes this to accessibility services from API 28. */
+    private fun lockScreen() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            performGlobalAction(GLOBAL_ACTION_LOCK_SCREEN)
+        }
+    }
+
+    /**
+     * Toggle portrait <-> landscape by pinning USER_ROTATION (and turning
+     * auto-rotate off so it sticks). Writing to Settings.System needs the
+     * WRITE_SETTINGS special permission; without it we do nothing rather than
+     * crash — the phone app's Settings screen offers the grant.
+     */
+    private fun rotate() {
+        if (!Settings.System.canWrite(this)) return
+        val current = Settings.System.getInt(contentResolver, Settings.System.USER_ROTATION, Surface.ROTATION_0)
+        val portrait = current == Surface.ROTATION_0 || current == Surface.ROTATION_180
+        Settings.System.putInt(contentResolver, Settings.System.ACCELEROMETER_ROTATION, 0)
+        Settings.System.putInt(
+            contentResolver,
+            Settings.System.USER_ROTATION,
+            if (portrait) Surface.ROTATION_90 else Surface.ROTATION_0,
+        )
     }
 
     private fun adjustVolume(direction: Int) {

@@ -153,6 +153,31 @@
 
             <View style="@style/Pm.Divider" />
 
+            <!-- Screen rotate (WRITE_SETTINGS) -->
+            <LinearLayout
+                android:id="@+id/setRotateRow"
+                style="@style/Pm.Row">
+
+                <ImageView
+                    style="@style/Pm.RowIcon"
+                    android:src="@drawable/ic_rotate"
+                    app:tint="@color/pm_green" />
+
+                <LinearLayout style="@style/Pm.RowText">
+
+                    <TextView style="@style/Pm.RowTitle" android:text="@string/perm_rotate" />
+
+                    <TextView style="@style/Pm.RowSub" android:text="@string/perm_rotate_sub" />
+                </LinearLayout>
+
+                <TextView
+                    android:id="@+id/setRotateChip"
+                    style="@style/Pm.Chip"
+                    android:text="@string/off" />
+            </LinearLayout>
+
+            <View style="@style/Pm.Divider" />
+
             <!-- Notifications -->
             <LinearLayout
                 android:id="@+id/setNotifRow"

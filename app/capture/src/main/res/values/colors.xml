@@ -19,6 +19,4 @@
     <color name="pm_green_tint">#262FA44A</color>
     <color name="pm_yellow_tint">#26EFDB16</color>
     <color name="pm_red_tint">#26E5484D</color>
-
-    <color name="ic_launcher_background">#000000</color>
 </resources>

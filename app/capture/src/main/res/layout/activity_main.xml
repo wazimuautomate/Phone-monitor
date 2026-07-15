@@ -21,8 +21,8 @@
             android:layout_height="24dp"
             android:layout_marginEnd="8dp"
             android:contentDescription="@null"
-            android:src="@drawable/ic_nav_remote"
-            app:tint="@color/pm_green" />
+            android:scaleType="fitCenter"
+            android:src="@mipmap/ic_logo" />
 
         <TextView
             android:layout_width="wrap_content"

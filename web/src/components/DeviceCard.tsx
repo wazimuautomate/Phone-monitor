@@ -1,34 +1,29 @@
 import { useEffect, useRef, useState } from "react";
 import type { Device } from "../types";
 import { PhoneScreen } from "./PhoneScreen";
-import { IconDots, IconDrag, IconEyeOff, IconPen, IconPointer, IconTrash } from "../lib/icons";
+import { Battery, Signal } from "./DeviceMeta";
+import { IconPen, IconPointer } from "../lib/icons";
 
 interface DeviceCardProps {
   device: Device;
   name: string;
-  reorderMode: boolean;
+  reorder: boolean;
   onRename: (name: string) => void;
-  onHide: () => void;
-  onRemove: () => void;
-  onFocus: () => void;
+  onControl: () => void;
 }
 
-export function DeviceCard({ device, name, reorderMode, onRename, onHide, onRemove, onFocus }: DeviceCardProps) {
+export function DeviceCard({ device, name, reorder, onRename, onControl }: DeviceCardProps) {
   const [editing, setEditing] = useState(false);
-  const [menuOpen, setMenuOpen] = useState(false);
   const [draft, setDraft] = useState(name);
   const inputRef = useRef<HTMLInputElement>(null);
   const online = device.status === "online";
 
   useEffect(() => {
-    if (editing) {
-      setDraft(name);
-      const el = inputRef.current;
-      if (el) {
-        el.focus();
-        el.select();
-      }
-    }
+    if (!editing) return;
+    setDraft(name);
+    const el = inputRef.current;
+    el?.focus();
+    el?.select();
   }, [editing, name]);
 
   const commit = () => {
@@ -38,8 +33,13 @@ export function DeviceCard({ device, name, reorderMode, onRename, onHide, onRemo
   };
 
   return (
-    <div className="card">
+    <div className={`card ${online ? "" : "offline"}`}>
       <div className="card-head">
+        {/* Dot only — the name needs the room at small tile sizes. */}
+        <span className={`live ${online ? "" : "off"}`} title={online ? "Live" : device.status}>
+          <i />
+        </span>
+
         {editing ? (
           <input
             ref={inputRef}
@@ -53,74 +53,38 @@ export function DeviceCard({ device, name, reorderMode, onRename, onHide, onRemo
             }}
           />
         ) : (
-          <button className="name-btn" onClick={() => setEditing(true)} title="Rename device">
-            <span className="card-title">{name}</span>
-            <IconPen className="pen" />
+          <button className="card-name" onClick={() => setEditing(true)} title={`${name} — click to rename`}>
+            <b>{name}</b>
+            <IconPen />
           </button>
         )}
 
-        <div className="card-head-right">
-          {reorderMode && (
-            <span className="drag-handle" title="Drag to reorder">
-              <IconDrag />
-            </span>
-          )}
-          <span className={`live ${online ? "on" : "off"}`}>
-            <span className="live-dot" />
-            {online ? "Live" : device.status}
-          </span>
-          <div className="menu-wrap">
-            <button className="icon-btn tiny" onClick={() => setMenuOpen((v) => !v)} title="Device options">
-              <IconDots />
-            </button>
-            {menuOpen && (
-              <div className="device-menu" onMouseLeave={() => setMenuOpen(false)}>
-                <button
-                  onClick={() => {
-                    setMenuOpen(false);
-                    onHide();
-                  }}
-                >
-                  <IconEyeOff /> Hide
-                </button>
-                <button
-                  className="danger"
-                  onClick={() => {
-                    setMenuOpen(false);
-                    onRemove();
-                  }}
-                >
-                  <IconTrash /> Remove
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
+        <span className="card-meta">
+          <Signal level={device.signal} />
+          <Battery level={device.battery} charging={device.charging} />
+          <span>{device.fps ?? 0} fps</span>
+        </span>
       </div>
 
-      {reorderMode ? (
+      {reorder ? (
         <PhoneScreen device={device} />
       ) : (
-        <div
-          className="screen-wrap"
-          role="button"
-          tabIndex={0}
-          title="Open control view"
-          onClick={onFocus}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" || e.key === " ") {
-              e.preventDefault();
-              onFocus();
-            }
-          }}
-        >
-          <PhoneScreen device={device} />
-          <div className="control-hint">
-            <IconPointer />
-            <span>Control</span>
-          </div>
+        <div onClick={onControl} role="button" tabIndex={-1} style={{ display: "contents" }}>
+          <PhoneScreen device={device}>
+            <div className="screen-hint">
+              <IconPointer />
+              <span>Control</span>
+            </div>
+          </PhoneScreen>
         </div>
       )}
+
+      <div className="card-foot">
+        <button className="btn" onClick={onControl} disabled={!online}>
+          <IconPointer />
+          Control
+        </button>
+      </div>
     </div>
   );
 }

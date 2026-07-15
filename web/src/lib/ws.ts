@@ -18,7 +18,8 @@ export type ControlKey =
   | "notifications"
   | "power"
   | "volup"
-  | "voldown";
+  | "voldown"
+  | "lock";
 
 // A single remote-control command. Coordinates are floats in [0,1], origin
 // top-left, normalized to the *video content* (letterboxing already removed).
@@ -26,6 +27,8 @@ export type ControlCmd =
   | { action: "tap"; x: number; y: number }
   | { action: "swipe"; x1: number; y1: number; x2: number; y2: number; ms: number }
   | { action: "key"; key: ControlKey }
+  // Toggle the phone between portrait and landscape.
+  | { action: "rotate" }
   | { action: "text"; text: string };
 
 interface HubHandlers {

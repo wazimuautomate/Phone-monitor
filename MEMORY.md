@@ -5,6 +5,23 @@ Newest first. One entry per work session: what was done, decisions made, and wha
 
 ---
 
+## 2026-07-15 — Desktop app v3: complete UI redesign (sidebar shell + Control Room)
+
+Client: "the desktop UI is very bad with limited features — complete fresh redesign, use the mobile app's colour theme." Rebuilt `web/` from scratch (old layout deliberately discarded); helper/Electron/agent extended to feed it real data.
+
+- **Shell:** `App.tsx` = Sidebar (collapsible; Monitor/History/Settings · separator · Devices+count · version pinned bottom) + TopBar (count, search, refresh, fullscreen, customize, theme) + page + StatusBar (copyable URL, How-to-connect modal, counts). Pages: Monitor / Devices / History / Settings. Control Room is an overlay.
+- **Control Room:** multi-phone stages (add others, click to activate), header metrics (fps/ms/signal/battery), full bar (Back/Home/Recents/Notifs/Vol±/Rotate/Lock/Power/Screenshot/Record/Leave). Leave always finalises+saves a running recording. Captures come off the decoder canvas (PNG / WebM MediaRecorder) → Electron writes to the chosen folder.
+- **New real data (protocol):** `DeviceInfo.signal` (0–4) + `.network`; agent sends `name`/`charging`/`signal`/`network` in `hello` **and a status frame every 10s** → **phone rename syncs to desktop**. Parsing shared via `helper/src/sources/phone-fields.ts` (used by both wifi-app-source and relay-source). Signal is permission-free best-effort (Wi-Fi RSSI; cell via `NetworkCapabilities.getSignalStrength()` API29+); **unknown → undefined → inert bars, never a fake 0**.
+- **New controls:** `key:"lock"` (GLOBAL_ACTION_LOCK_SCREEN, API28+) and `{action:"rotate"}` (USER_ROTATION; needs WRITE_SETTINGS — new permission row on the phone's Settings tab; no-ops if ungranted).
+- **Electron:** IPC for keep-awake (`powerSaveBlocker` — client called this "very very important"), save-capture, pick-folder, app-version, fullscreen(+event). `lib/desktop.ts` wraps it so the plain web build degrades (download / Screen Wake Lock / DOM fullscreen). Desktop → **3.0.0**.
+- **Declined (honestly):** *location* alerts — no location anywhere in the pipeline; not shipping an inert toggle.
+
+**Verified for real, not just typechecked:** ran the app locally and drove it over CDP (`--remote-debugging-port`) — screenshotted Monitor (6 cards), Devices, History, Settings, Control Room, 2-phone room, light theme; 0 console errors; the "Weak signal" toast fired from the new signal field.
+
+**Gotchas for next time:** this shell has `ELECTRON_RUN_AS_NODE=1` set — `npx electron` runs as plain Node (`app` undefined) unless you `unset` it. And a running copy of the app holds the single-instance lock, so a dev instance silently quits — use `--user-data-dir=<tmp>` + `PM_PORT=<other>` to run alongside it.
+
+---
+
 ## 2026-07-15 — Android Agent app: full four-tab UI redesign (+ light/dark theme)
 
 Client ran the earlier Agent screens through Google Stitch, liked the look, and asked to implement it in the real app — but Stitch had invented irrelevant content (streaming jargon, a fake "Administrator" person, cloud relay, iPad/MacBook history). Redesigned to match our actual product, then built it in the Android app.

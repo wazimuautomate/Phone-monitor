@@ -1,4 +1,11 @@
-import type { ConnectionType, DeviceInfo, DeviceSource, SourceEventHandler, Tier } from "./types.js";
+import type {
+  ConnectionType,
+  DeviceInfo,
+  DeviceSource,
+  NetworkType,
+  SourceEventHandler,
+  Tier,
+} from "./types.js";
 
 interface MockSpec {
   model: string;
@@ -6,16 +13,18 @@ interface MockSpec {
   battery: number;
   connection: ConnectionType;
   tier: Tier;
+  signal: number;
+  network: NetworkType;
 }
 
 // Mirrors the reference mockup; also used as a pool when adding demo devices.
 const SPECS: MockSpec[] = [
-  { model: "SM-G991B", androidVersion: "13", battery: 78, connection: "wifi-adb", tier: "control" },
-  { model: "SM-A528B", androidVersion: "13", battery: 65, connection: "wifi-adb", tier: "control" },
-  { model: "SM-A736B", androidVersion: "13", battery: 71, connection: "wifi-adb", tier: "control" },
-  { model: "SM-S908B", androidVersion: "13", battery: 62, connection: "wifi-app", tier: "view" },
-  { model: "SM-F721B", androidVersion: "13", battery: 80, connection: "wifi-app", tier: "view" },
-  { model: "SM-M336B", androidVersion: "12", battery: 55, connection: "wifi-app", tier: "view" },
+  { model: "SM-G991B", androidVersion: "13", battery: 78, connection: "wifi-app", tier: "view", signal: 4, network: "wifi" },
+  { model: "SM-A528B", androidVersion: "13", battery: 65, connection: "wifi-app", tier: "view", signal: 3, network: "wifi" },
+  { model: "SM-A736B", androidVersion: "13", battery: 71, connection: "wifi-app", tier: "view", signal: 2, network: "cell" },
+  { model: "SM-S908B", androidVersion: "13", battery: 62, connection: "wifi-app", tier: "view", signal: 4, network: "wifi" },
+  { model: "SM-F721B", androidVersion: "13", battery: 80, connection: "wifi-app", tier: "view", signal: 3, network: "cell" },
+  { model: "SM-M336B", androidVersion: "12", battery: 55, connection: "wifi-app", tier: "view", signal: 1, network: "cell" },
 ];
 
 /**
@@ -26,6 +35,7 @@ const SPECS: MockSpec[] = [
 export class MockSource implements DeviceSource {
   readonly connection: ConnectionType = "wifi-app";
   private readonly devicesById = new Map<string, DeviceInfo>();
+  private readonly baseSignal = new Map<string, number>();
   private emit?: SourceEventHandler;
   private timer?: ReturnType<typeof setInterval>;
   private seq = 0;
@@ -42,10 +52,18 @@ export class MockSource implements DeviceSource {
         const battery = info.charging
           ? Math.min(100, (info.battery ?? 0) + (tick % 20 === 0 ? 1 : 0))
           : Math.max(1, (info.battery ?? 0) - (tick % 30 === 0 ? 1 : 0));
+        // Drift the bars around the device's baseline so the signal UI is alive.
+        const base = this.baseSignal.get(info.id) ?? 3;
+        const signal = Math.max(1, Math.min(4, base + (Math.sin(tick / 7 + base) > 0.8 ? -1 : 0)));
         info.fps = fps;
         info.battery = battery;
+        info.signal = signal;
         info.lastUpdate = Date.now();
-        this.emit?.({ kind: "stats", deviceId: info.id, patch: { fps, battery, lastUpdate: info.lastUpdate } });
+        this.emit?.({
+          kind: "stats",
+          deviceId: info.id,
+          patch: { fps, battery, signal, lastUpdate: info.lastUpdate },
+        });
       }
     }, 1000);
   }
@@ -61,6 +79,7 @@ export class MockSource implements DeviceSource {
   }
 
   remove(id: string): boolean {
+    this.baseSignal.delete(id);
     if (this.devicesById.delete(id)) {
       this.emit?.({ kind: "removed", deviceId: id, reason: "user" });
       return true;
@@ -73,18 +92,26 @@ export class MockSource implements DeviceSource {
     const id = `mock-${this.seq}`;
     const info: DeviceInfo = {
       id,
-      name: `Device ${this.seq}`,
+      name: `Demo phone ${this.seq}`,
       model: spec.model,
       androidVersion: spec.androidVersion,
       battery: spec.battery,
       charging: spec.battery < 70,
+      signal: spec.signal,
+      network: spec.network,
       tier: spec.tier,
       connection: spec.connection,
       status: "online",
       fps: 30,
+      // A typical phone screen, so the demo tiles and the control room use the
+      // same aspect ratio as a real device.
+      width: 1080,
+      height: 2400,
+      controllable: true,
       lastUpdate: Date.now(),
     };
     this.devicesById.set(id, info);
+    this.baseSignal.set(id, spec.signal);
     this.emit?.({ kind: "device", info });
   }
 
@@ -96,5 +123,6 @@ export class MockSource implements DeviceSource {
     if (this.timer) clearInterval(this.timer);
     this.timer = undefined;
     this.devicesById.clear();
+    this.baseSignal.clear();
   }
 }

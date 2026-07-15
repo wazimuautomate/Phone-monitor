@@ -6,6 +6,7 @@ import type {
   DeviceSource,
   SourceEventHandler,
 } from "./types.js";
+import { bars, netType, phoneName, statusPatch } from "./phone-fields.js";
 
 /**
  * Remote (out-of-home) ingest. Connects to the relay as a VIEWER for one pairing
@@ -115,10 +116,13 @@ export class RelaySource implements DeviceSource {
   private registerDevice(msg: Record<string, unknown>): void {
     const info: DeviceInfo = {
       id: this.deviceId,
-      name: (msg.model as string) || `Remote phone ${this.code}`,
+      name: phoneName(msg) ?? (msg.model as string) ?? `Remote phone ${this.code}`,
       model: msg.model as string | undefined,
       androidVersion: msg.androidVersion as string | undefined,
       battery: typeof msg.battery === "number" ? msg.battery : undefined,
+      charging: typeof msg.charging === "boolean" ? msg.charging : undefined,
+      signal: bars(msg.signal),
+      network: netType(msg.network),
       tier: "view",
       connection: "internet-app",
       status: "online",
@@ -134,15 +138,16 @@ export class RelaySource implements DeviceSource {
   }
 
   private applyStatus(msg: Record<string, unknown>): void {
-    if (this.device && typeof msg.screenLocked === "boolean") {
-      this.device.screenLocked = msg.screenLocked;
-      this.device.lastUpdate = Date.now();
-      this.emit?.({
-        kind: "stats",
-        deviceId: this.deviceId,
-        patch: { screenLocked: msg.screenLocked, lastUpdate: this.device.lastUpdate },
-      });
-    }
+    if (!this.device) return;
+    const patch = statusPatch(msg);
+    if (Object.keys(patch).length === 0) return;
+    Object.assign(this.device, patch);
+    this.device.lastUpdate = Date.now();
+    this.emit?.({
+      kind: "stats",
+      deviceId: this.deviceId,
+      patch: { ...patch, lastUpdate: this.device.lastUpdate },
+    });
   }
 
   private markOffline(): void {

@@ -1,202 +1,452 @@
-// Inline SVG icons (no emoji). Stroke-based, inherit `currentColor`.
+// Line icons (Lucide-style: 24px box, 2px stroke, round joins) drawn with
+// currentColor so they inherit whatever the surrounding text colour is.
+import type { ReactNode } from "react";
+
 interface P {
   className?: string;
 }
 
-const svg = (children: React.ReactNode, fill = false) => (p: P) => (
-  <svg
-    className={p.className}
-    width="20"
-    height="20"
-    viewBox="0 0 24 24"
-    fill={fill ? "currentColor" : "none"}
-    stroke={fill ? "none" : "currentColor"}
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    aria-hidden="true"
-  >
-    {children}
+function S({ children, className }: { children: ReactNode; className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden="true"
+    >
+      {children}
+    </svg>
+  );
+}
+
+/** Brand mark: the app icon itself, the same artwork the phone app and the .exe use. */
+export function Logo({ className }: P) {
+  return <img src="/logo.png" className={className} alt="" aria-hidden="true" />;
+}
+
+// ---- Sidebar / navigation ----
+
+export const IconMonitor = ({ className }: P) => (
+  <S className={className}>
+    <rect x="3" y="3" width="7.5" height="7.5" rx="1.5" />
+    <rect x="13.5" y="3" width="7.5" height="7.5" rx="1.5" />
+    <rect x="3" y="13.5" width="7.5" height="7.5" rx="1.5" />
+    <rect x="13.5" y="13.5" width="7.5" height="7.5" rx="1.5" />
+  </S>
+);
+
+export const IconHistory = ({ className }: P) => (
+  <S className={className}>
+    <circle cx="12" cy="12" r="9" />
+    <polyline points="12 7 12 12 15.5 14" />
+  </S>
+);
+
+export const IconSettings = ({ className }: P) => (
+  <S className={className}>
+    <line x1="4" y1="8" x2="20" y2="8" />
+    <line x1="4" y1="16" x2="20" y2="16" />
+    <circle cx="9" cy="8" r="2.5" />
+    <circle cx="15" cy="16" r="2.5" />
+  </S>
+);
+
+export const IconDevices = ({ className }: P) => (
+  <S className={className}>
+    <rect x="3" y="4" width="10" height="16" rx="2" />
+    <rect x="15" y="9" width="6" height="11" rx="1.5" />
+    <line x1="6.5" y1="17" x2="9.5" y2="17" />
+  </S>
+);
+
+// ---- Header ----
+
+export const IconSearch = ({ className }: P) => (
+  <S className={className}>
+    <circle cx="11" cy="11" r="7" />
+    <line x1="16.5" y1="16.5" x2="21" y2="21" />
+  </S>
+);
+
+export const IconRefresh = ({ className }: P) => (
+  <S className={className}>
+    <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+    <path d="M3 3v5h5" />
+    <path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16" />
+    <path d="M16 16h5v5" />
+  </S>
+);
+
+export const IconExpand = ({ className }: P) => (
+  <S className={className}>
+    <path d="M8 3H5a2 2 0 0 0-2 2v3" />
+    <path d="M16 3h3a2 2 0 0 1 2 2v3" />
+    <path d="M8 21H5a2 2 0 0 1-2-2v-3" />
+    <path d="M16 21h3a2 2 0 0 0 2-2v-3" />
+  </S>
+);
+
+export const IconShrink = ({ className }: P) => (
+  <S className={className}>
+    <path d="M3 8h3a2 2 0 0 0 2-2V3" />
+    <path d="M21 8h-3a2 2 0 0 1-2-2V3" />
+    <path d="M3 16h3a2 2 0 0 1 2 2v3" />
+    <path d="M21 16h-3a2 2 0 0 0-2 2v3" />
+  </S>
+);
+
+export const IconSliders = ({ className }: P) => (
+  <S className={className}>
+    <line x1="5" y1="21" x2="5" y2="14" />
+    <line x1="5" y1="10" x2="5" y2="3" />
+    <line x1="12" y1="21" x2="12" y2="12" />
+    <line x1="12" y1="8" x2="12" y2="3" />
+    <line x1="19" y1="21" x2="19" y2="16" />
+    <line x1="19" y1="12" x2="19" y2="3" />
+    <line x1="2.5" y1="12" x2="7.5" y2="12" />
+    <line x1="9.5" y1="10" x2="14.5" y2="10" />
+    <line x1="16.5" y1="14" x2="21.5" y2="14" />
+  </S>
+);
+
+export const IconSun = ({ className }: P) => (
+  <S className={className}>
+    <circle cx="12" cy="12" r="4" />
+    <path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" />
+  </S>
+);
+
+export const IconMoon = ({ className }: P) => (
+  <S className={className}>
+    <path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z" />
+  </S>
+);
+
+export const IconSystem = ({ className }: P) => (
+  <S className={className}>
+    <rect x="2" y="4" width="20" height="13" rx="2" />
+    <line x1="8" y1="21" x2="16" y2="21" />
+    <line x1="12" y1="17" x2="12" y2="21" />
+  </S>
+);
+
+// ---- Cards / devices ----
+
+export const IconPen = ({ className }: P) => (
+  <S className={className}>
+    <path d="M12 20h9" />
+    <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z" />
+  </S>
+);
+
+export const IconPointer = ({ className }: P) => (
+  <S className={className}>
+    <path d="M5 3l14 8.5-6.2 1.6-2.4 6z" />
+  </S>
+);
+
+export const IconDots = ({ className }: P) => (
+  <svg viewBox="0 0 24 24" className={className} fill="currentColor" aria-hidden="true">
+    <circle cx="12" cy="5" r="1.8" />
+    <circle cx="12" cy="12" r="1.8" />
+    <circle cx="12" cy="19" r="1.8" />
   </svg>
 );
 
-export const IconRefresh = svg(
-  <>
-    <polyline points="23 4 23 10 17 10" />
-    <polyline points="1 20 1 14 7 14" />
-    <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
-  </>,
+export const IconEyeOff = ({ className }: P) => (
+  <S className={className}>
+    <path d="M9.9 5.1A9.5 9.5 0 0 1 12 5c5 0 9 4.5 9 7a11 11 0 0 1-2.3 3.4M6.2 6.2C3.9 7.7 3 10.2 3 12c0 2.5 4 7 9 7 1.8 0 3.4-.6 4.7-1.4" />
+    <path d="M9.9 9.9a3 3 0 0 0 4.2 4.2" />
+    <line x1="3" y1="3" x2="21" y2="21" />
+  </S>
 );
 
-export const IconSettings = svg(
-  <>
+export const IconEye = ({ className }: P) => (
+  <S className={className}>
+    <path d="M3 12s3.5-7 9-7 9 7 9 7-3.5 7-9 7-9-7-9-7z" />
     <circle cx="12" cy="12" r="3" />
-    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
-  </>,
+  </S>
 );
 
-export const IconSun = svg(
-  <>
-    <circle cx="12" cy="12" r="5" />
-    <line x1="12" y1="1" x2="12" y2="3" />
-    <line x1="12" y1="21" x2="12" y2="23" />
-    <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
-    <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
-    <line x1="1" y1="12" x2="3" y2="12" />
-    <line x1="21" y1="12" x2="23" y2="12" />
-    <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
-    <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
-  </>,
+export const IconTrash = ({ className }: P) => (
+  <S className={className}>
+    <path d="M3 6h18" />
+    <path d="M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2" />
+    <path d="M6 6l1 14a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1l1-14" />
+  </S>
 );
 
-export const IconMoon = svg(<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />);
-
-export const IconExpand = svg(
-  <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3M3 16v3a2 2 0 0 0 2 2h3m10 0h3a2 2 0 0 0 2-2v-3" />,
+export const IconPhone = ({ className }: P) => (
+  <S className={className}>
+    <rect x="6" y="2" width="12" height="20" rx="2.5" />
+    <line x1="10.5" y1="18.5" x2="13.5" y2="18.5" />
+  </S>
 );
 
-export const IconClose = svg(
-  <>
+export const IconWifi = ({ className }: P) => (
+  <S className={className}>
+    <path d="M2.5 9a15 15 0 0 1 19 0" />
+    <path d="M6 12.5a10 10 0 0 1 12 0" />
+    <path d="M9.5 16a5 5 0 0 1 5 0" />
+    <circle cx="12" cy="19.5" r="0.6" fill="currentColor" />
+  </S>
+);
+
+export const IconCell = ({ className }: P) => (
+  <S className={className}>
+    <path d="M5 18V9" />
+    <path d="M2.5 6.5a6 6 0 0 1 0 8" />
+    <path d="M7.5 6.5a6 6 0 0 0 0 8" />
+    <path d="M12 20l4-14 4 14" />
+    <path d="M13.2 15.5h5.6" />
+  </S>
+);
+
+// ---- Control room ----
+
+export const IconBack = ({ className }: P) => (
+  <S className={className}>
+    <line x1="20" y1="12" x2="5" y2="12" />
+    <polyline points="11 18 5 12 11 6" />
+  </S>
+);
+
+export const IconHome = ({ className }: P) => (
+  <S className={className}>
+    <path d="M3 11l9-8 9 8" />
+    <path d="M5.5 9.5V20a1 1 0 0 0 1 1h11a1 1 0 0 0 1-1V9.5" />
+  </S>
+);
+
+export const IconRecents = ({ className }: P) => (
+  <S className={className}>
+    <rect x="4" y="4" width="16" height="16" rx="2.5" />
+  </S>
+);
+
+export const IconBell = ({ className }: P) => (
+  <S className={className}>
+    <path d="M18 8a6 6 0 1 0-12 0c0 5-2 6-2 6h16s-2-1-2-6" />
+    <path d="M10.5 20a2 2 0 0 0 3 0" />
+  </S>
+);
+
+export const IconVolumeUp = ({ className }: P) => (
+  <S className={className}>
+    <path d="M11 5L6.5 9H3v6h3.5L11 19z" />
+    <path d="M15.5 8.5a5 5 0 0 1 0 7" />
+    <path d="M18.5 5.5a9 9 0 0 1 0 13" />
+  </S>
+);
+
+export const IconVolumeDown = ({ className }: P) => (
+  <S className={className}>
+    <path d="M11 5L6.5 9H3v6h3.5L11 19z" />
+    <line x1="16" y1="10" x2="21" y2="14" />
+    <line x1="21" y1="10" x2="16" y2="14" />
+  </S>
+);
+
+export const IconPower = ({ className }: P) => (
+  <S className={className}>
+    <path d="M12 3v9" />
+    <path d="M18.4 6.6a9 9 0 1 1-12.8 0" />
+  </S>
+);
+
+export const IconLock = ({ className }: P) => (
+  <S className={className}>
+    <rect x="4" y="10" width="16" height="11" rx="2" />
+    <path d="M8 10V7a4 4 0 0 1 8 0v3" />
+  </S>
+);
+
+export const IconRotate = ({ className }: P) => (
+  <S className={className}>
+    <path d="M20.5 12a8.5 8.5 0 0 1-8.5 8.5" />
+    <path d="M3.5 12A8.5 8.5 0 0 1 12 3.5" />
+    <polyline points="12 1 12 6 8.5 3.5" />
+    <polyline points="12 23 12 18 15.5 20.5" />
+  </S>
+);
+
+export const IconCamera = ({ className }: P) => (
+  <S className={className}>
+    <path d="M3 8a2 2 0 0 1 2-2h2l1.5-2h7L17 6h2a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+    <circle cx="12" cy="13" r="3.5" />
+  </S>
+);
+
+export const IconRecord = ({ className }: P) => (
+  <svg viewBox="0 0 24 24" className={className} aria-hidden="true">
+    <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" strokeWidth="2" />
+    <circle cx="12" cy="12" r="4.5" fill="currentColor" />
+  </svg>
+);
+
+export const IconStop = ({ className }: P) => (
+  <svg viewBox="0 0 24 24" className={className} aria-hidden="true">
+    <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" strokeWidth="2" />
+    <rect x="8.5" y="8.5" width="7" height="7" rx="1.5" fill="currentColor" />
+  </svg>
+);
+
+export const IconClose = ({ className }: P) => (
+  <S className={className}>
     <line x1="18" y1="6" x2="6" y2="18" />
     <line x1="6" y1="6" x2="18" y2="18" />
-  </>,
+  </S>
 );
 
-export const IconPen = svg(
-  <>
-    <path d="M12 20h9" />
-    <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
-  </>,
-);
-
-export const IconDots = svg(
-  <>
-    <circle cx="12" cy="5" r="1.6" />
-    <circle cx="12" cy="12" r="1.6" />
-    <circle cx="12" cy="19" r="1.6" />
-  </>,
-  true,
-);
-
-export const IconEyeOff = svg(
-  <>
-    <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" />
-    <line x1="1" y1="1" x2="23" y2="23" />
-  </>,
-);
-
-export const IconTrash = svg(
-  <>
-    <polyline points="3 6 5 6 21 6" />
-    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-  </>,
-);
-
-export const IconDrag = svg(
-  <>
-    <circle cx="9" cy="6" r="1.4" />
-    <circle cx="9" cy="12" r="1.4" />
-    <circle cx="9" cy="18" r="1.4" />
-    <circle cx="15" cy="6" r="1.4" />
-    <circle cx="15" cy="12" r="1.4" />
-    <circle cx="15" cy="18" r="1.4" />
-  </>,
-  true,
-);
-
-export const IconLink = svg(
-  <>
-    <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
-    <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
-  </>,
-);
-
-export const IconPhone = svg(
-  <>
-    <rect x="5" y="2" width="14" height="20" rx="2" ry="2" />
-    <line x1="12" y1="18" x2="12.01" y2="18" />
-  </>,
-);
-
-export const IconPlus = svg(
-  <>
+export const IconPlus = ({ className }: P) => (
+  <S className={className}>
     <line x1="12" y1="5" x2="12" y2="19" />
     <line x1="5" y1="12" x2="19" y2="12" />
-  </>,
+  </S>
 );
 
-export const IconMinus = svg(<line x1="5" y1="12" x2="19" y2="12" />);
-
-// ---- Remote-control affordance + control-bar icons ----
-
-// Mouse-pointer — the "Control" affordance shown on a card's screen.
-export const IconPointer = svg(
-  <>
-    <path d="M3 3l7.07 17 2.51-7.42L20 10.07 3 3z" />
-    <path d="M13 13l6 6" />
-  </>,
+export const IconMinus = ({ className }: P) => (
+  <S className={className}>
+    <line x1="5" y1="12" x2="19" y2="12" />
+  </S>
 );
 
-// Android nav: Back (arrow-left), Home (house), Recents (rounded square).
-export const IconBack = svg(
-  <>
-    <line x1="19" y1="12" x2="5" y2="12" />
-    <polyline points="12 19 5 12 12 5" />
-  </>,
+export const IconLeave = ({ className }: P) => (
+  <S className={className}>
+    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+    <polyline points="16 17 21 12 16 7" />
+    <line x1="21" y1="12" x2="9" y2="12" />
+  </S>
 );
 
-export const IconHome = svg(
-  <>
-    <path d="M3 9.5 12 3l9 6.5V20a1 1 0 0 1-1 1h-5v-6H10v6H4a1 1 0 0 1-1-1z" />
-  </>,
+// ---- Status bar / misc ----
+
+export const IconLink = ({ className }: P) => (
+  <S className={className}>
+    <path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.5 1.5" />
+    <path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7L12 19" />
+  </S>
 );
 
-export const IconRecents = svg(<rect x="4" y="4" width="16" height="16" rx="2.5" />);
-
-export const IconBell = svg(
-  <>
-    <path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9" />
-    <path d="M13.73 21a2 2 0 0 1-3.46 0" />
-  </>,
+export const IconCopy = ({ className }: P) => (
+  <S className={className}>
+    <rect x="9" y="9" width="12" height="12" rx="2" />
+    <path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1" />
+  </S>
 );
 
-export const IconPower = svg(
-  <>
-    <path d="M18.36 6.64a9 9 0 1 1-12.73 0" />
-    <line x1="12" y1="2" x2="12" y2="12" />
-  </>,
+export const IconHelp = ({ className }: P) => (
+  <S className={className}>
+    <circle cx="12" cy="12" r="9" />
+    <path d="M9.6 9.2a2.5 2.5 0 0 1 4.9.8c0 1.7-2.5 2.5-2.5 2.5" />
+    <circle cx="12" cy="17" r="0.7" fill="currentColor" />
+  </S>
 );
 
-export const IconVolumeUp = svg(
-  <>
-    <polygon points="11 5 6 9 3 9 3 15 6 15 11 19 11 5" />
-    <line x1="19" y1="9" x2="19" y2="15" />
-    <line x1="16" y1="12" x2="22" y2="12" />
-  </>,
+export const IconFolder = ({ className }: P) => (
+  <S className={className}>
+    <path d="M3 7a2 2 0 0 1 2-2h4l2 2.5h8a2 2 0 0 1 2 2V18a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+  </S>
 );
 
-export const IconVolumeDown = svg(
-  <>
-    <polygon points="11 5 6 9 3 9 3 15 6 15 11 19 11 5" />
-    <line x1="16" y1="12" x2="22" y2="12" />
-  </>,
+export const IconChevronLeft = ({ className }: P) => (
+  <S className={className}>
+    <polyline points="15 5 8 12 15 19" />
+  </S>
 );
 
-export const IconBattery = svg(
-  <>
-    <rect x="2" y="7" width="18" height="10" rx="2.2" />
-    <line x1="22.5" y1="10.5" x2="22.5" y2="13.5" />
-  </>,
+export const IconChevronRight = ({ className }: P) => (
+  <S className={className}>
+    <polyline points="9 5 16 12 9 19" />
+  </S>
 );
 
-// Brand mark — fixed colors regardless of theme.
-export function Logo({ className }: P) {
+export const IconChevronDown = ({ className }: P) => (
+  <S className={className}>
+    <polyline points="5 9 12 16 19 9" />
+  </S>
+);
+
+export const IconCheck = ({ className }: P) => (
+  <S className={className}>
+    <polyline points="4 12.5 9.5 18 20 6.5" />
+  </S>
+);
+
+export const IconPlug = ({ className }: P) => (
+  <S className={className}>
+    <path d="M9 3v6M15 3v6" />
+    <path d="M6 9h12v3a6 6 0 0 1-12 0z" />
+    <path d="M12 18v3" />
+  </S>
+);
+
+// ---- Data-driven indicators ----
+
+/**
+ * Signal bars. `level` is 0..4; `undefined` means the phone never reported it,
+ * which we show as flat muted bars rather than an alarming zero.
+ */
+export function SignalBars({ level, className }: { level?: number; className?: string }) {
+  const known = typeof level === "number";
   return (
-    <svg className={className} width="22" height="22" viewBox="0 0 64 64" aria-hidden="true">
-      <rect width="64" height="64" rx="14" fill="#000000" />
-      <rect x="22" y="12" width="20" height="40" rx="5" fill="none" stroke="#2FA44A" strokeWidth="3" />
-      <circle cx="32" cy="45" r="2.5" fill="#2FA44A" />
-      <circle cx="46" cy="17" r="5" fill="#E51219" />
+    <svg viewBox="0 0 18 14" className={className} aria-hidden="true">
+      {[0, 1, 2, 3].map((i) => (
+        <rect
+          key={i}
+          x={i * 4.6}
+          y={11 - i * 3}
+          width="3"
+          height={3 + i * 3}
+          rx="1"
+          fill="currentColor"
+          opacity={known && i < (level as number) ? 1 : 0.22}
+        />
+      ))}
+    </svg>
+  );
+}
+
+/** Battery with a proportional fill, plus a bolt while charging. */
+export function BatteryIcon({
+  level,
+  charging,
+  className,
+}: {
+  level?: number;
+  charging?: boolean;
+  className?: string;
+}) {
+  const pct = Math.max(0, Math.min(100, level ?? 0));
+  const w = (pct / 100) * 13.5;
+  return (
+    <svg viewBox="0 0 26 14" className={className} aria-hidden="true">
+      <rect
+        x="0.75"
+        y="0.75"
+        width="20.5"
+        height="12.5"
+        rx="3"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        opacity="0.55"
+      />
+      <path d="M23 5v4a2.6 2.6 0 0 0 0-4z" fill="currentColor" opacity="0.55" />
+      {typeof level === "number" && <rect x="3.2" y="3.2" width={w} height="7.6" rx="1.4" fill="currentColor" />}
+      {charging && (
+        <path
+          d="M12.4 2.4L8.2 8h3.1l-0.7 4.2L15 6.4h-3.2z"
+          fill="currentColor"
+          stroke="var(--card)"
+          strokeWidth="0.9"
+          strokeLinejoin="round"
+        />
+      )}
     </svg>
   );
 }

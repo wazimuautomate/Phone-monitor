@@ -92,6 +92,8 @@
     <string name="perm_control_sub">Let the desktop tap and type</string>
     <string name="perm_keep">Keep running</string>
     <string name="perm_keep_sub">Don\'t sleep while monitoring</string>
+    <string name="perm_rotate">Screen rotate</string>
+    <string name="perm_rotate_sub">Let the desktop rotate this screen</string>
     <string name="perm_notif">Notifications</string>
     <string name="perm_notif_sub">Show a status while monitoring</string>
     <string name="allowed">Allowed</string>
