@@ -6,7 +6,7 @@ server on the public internet: the **relay** (`relay/`). The phone and desktop b
 connect *outbound* to it (so no port-forwarding), and it pairs them by a 9-digit code.
 
 > **Why a server at all?** A phone and a desktop on different networks can't reach each
-> other directly (private IPs + NAT). The relay is the meeting point. See `CONNECTIVITY.md`.
+> other directly (private IPs + NAT). The relay is the meeting point.
 
 ## 1. Deploy the relay (pick one)
 

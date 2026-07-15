@@ -187,24 +187,7 @@ export const IconPhone = ({ className }: P) => (
   </S>
 );
 
-export const IconWifi = ({ className }: P) => (
-  <S className={className}>
-    <path d="M2.5 9a15 15 0 0 1 19 0" />
-    <path d="M6 12.5a10 10 0 0 1 12 0" />
-    <path d="M9.5 16a5 5 0 0 1 5 0" />
-    <circle cx="12" cy="19.5" r="0.6" fill="currentColor" />
-  </S>
-);
 
-export const IconCell = ({ className }: P) => (
-  <S className={className}>
-    <path d="M5 18V9" />
-    <path d="M2.5 6.5a6 6 0 0 1 0 8" />
-    <path d="M7.5 6.5a6 6 0 0 0 0 8" />
-    <path d="M12 20l4-14 4 14" />
-    <path d="M13.2 15.5h5.6" />
-  </S>
-);
 
 // ---- Control room ----
 
@@ -365,11 +348,6 @@ export const IconChevronRight = ({ className }: P) => (
   </S>
 );
 
-export const IconChevronDown = ({ className }: P) => (
-  <S className={className}>
-    <polyline points="5 9 12 16 19 9" />
-  </S>
-);
 
 export const IconCheck = ({ className }: P) => (
   <S className={className}>
@@ -377,13 +355,6 @@ export const IconCheck = ({ className }: P) => (
   </S>
 );
 
-export const IconPlug = ({ className }: P) => (
-  <S className={className}>
-    <path d="M9 3v6M15 3v6" />
-    <path d="M6 9h12v3a6 6 0 0 1-12 0z" />
-    <path d="M12 18v3" />
-  </S>
-);
 
 // ---- Data-driven indicators ----
 

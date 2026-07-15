@@ -9,7 +9,7 @@ Read it first. Keep it accurate.
 
 The scope changed after the client saw the v1 demo. The **full v2 plan is in `REBUILD-PLAN.md`** (the authoritative direction). Key reversals to the decisions written further down this file:
 
-- **Delivery is now an Electron desktop app (`.exe`), NOT a hosted web dashboard.** This reverses "§7 · NOT Electron/Tauri" and "§1 · everything local, no cloud". Cloud hosting (Docker/Render/`HOSTING.md`, dashboard password) is retired.
+- **Delivery is now an Electron desktop app (`.exe`), NOT a hosted web dashboard.** This reverses "§7 · NOT Electron/Tauri" and "§1 · everything local, no cloud". The v1 cloud-hosted dashboard is retired — its `Dockerfile` / `HOSTING.md` / dashboard password are gone (see git history). `render.yaml` remains, but it now deploys **only the relay**.
 - **Remote control is now core (AnyDesk-style), near *and* far.** Transport: WebRTC P2P + a thin signaling/TURN relay (`relay/`). LAN path works today; remote is the next milestone.
 - **All the client's phones have Developer Options ON** — the "Tier-2 only / carrier-locked" assumption is dead. The Android **Agent** app captures via MediaProjection **and injects input via an AccessibilityService** (`app/…/ControlService.kt`). ADB/scrcpy is an optional LAN "turbo" path.
 - **Mobile = both** an on-device Agent and a Controller app (Controller is later).

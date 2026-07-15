@@ -102,7 +102,7 @@ Grounded in the current repo:
 - **Agent app** = current capture app **+ AccessibilityService** (input injection) **+ WebRTC** (replace/augment the raw `/app` WebSocket) **+ pairing-by-code**.
 
 ### 🗑️ Drop / retire (no longer the delivery model)
-- **Cloud-hosted dashboard**: `Dockerfile`, `render.yaml`, `HOSTING.md`, the dashboard **password login** (`LoginGate.tsx`, `ACCESS_TOKEN` gate). The desktop app replaces hosting; pairing replaces the password. (Keep the code in git history; don't carry it forward.)
+- **Cloud-hosted dashboard**: the root `Dockerfile`, `HOSTING.md` and the dashboard **password login** (`LoginGate.tsx`, `ACCESS_TOKEN` gate). The desktop app replaces hosting; pairing replaces the password. All since deleted — recover from git history if ever needed. (`render.yaml` survives, but now deploys only the relay.)
 - **Serving `web/dist` over Express** — the renderer is loaded by Electron now.
 
 ### ✨ New components to build
@@ -155,7 +155,7 @@ Each phase ends **working and demoable**. We prove control **locally first**, th
   Update `CLAUDE.md` (§7 reversed decisions, new architecture), `MEMORY.md`, `CHANGELOG.md`. Stand up the Electron shell loading the existing React UI (mock source) → the beautiful dashboard runs as a real `.exe`. *Demo: the app he loved, now installable.*
 
 - **R1 — LAN control spike (AnyDesk feel, local)** — ✅ **DONE (confirmed on a real phone, 2026-07-15)**
-  Add the AccessibilityService to the Agent; wire MediaProjection→H.264 and input over a **direct LAN connection** (reuse current WS transport first). One phone: live screen **+ working tap/swipe/back/home** from the desktop. *Demo: control a phone in the same room.* Note: UI polish deferred by client; several first-real-phone bugs fixed (see CHANGELOG). This is **LAN-only** — remote is R2/R3 (see `CONNECTIVITY.md`).
+  Add the AccessibilityService to the Agent; wire MediaProjection→H.264 and input over a **direct LAN connection** (reuse current WS transport first). One phone: live screen **+ working tap/swipe/back/home** from the desktop. *Demo: control a phone in the same room.* Note: UI polish deferred by client; several first-real-phone bugs fixed (see CHANGELOG). This is **LAN-only** — remote is R2/R3.
 
 - **R3 — Remote (relay + pairing)** — ✅ **DONE (built + tested locally, 2026-07-15)**
   Shipped ahead of R2: a **relay-brokered** remote path (reusing the proven H.264/WebCodecs/control pipeline) instead of native WebRTC. Phone + desktop connect outbound to a hosted relay (`relay/`), pair by a 9-digit code, and stream/control both ways. Desktop: Settings → Remote phones. Android: "Remote access" mode shows the code. Deploy via `render.yaml`/`relay/Dockerfile` (`REMOTE.md`). *Demo: control the phone from outside the house — once the relay is deployed publicly.*

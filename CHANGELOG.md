@@ -5,6 +5,21 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this pr
 
 ## [Unreleased]
 
+### Repo cleanup (v1 done — no code behaviour change)
+
+Pared the repo back to the three things that ship: the **desktop app** (`desktop/` + `web/` + `helper/`), the **mobile agent** (`app/`), and the **relay** (`relay/`, kept for the next version).
+
+Removed (all recoverable from git history):
+- **Retired v1 cloud hosting** — root `Dockerfile`, `.dockerignore`, `HOSTING.md`. The v2 pivot replaced the hosted dashboard with the desktop app. `render.yaml` stays: it now deploys **only the relay**, which `relay/Dockerfile` still backs.
+- **`CONNECTIVITY.md`** — written when the product was LAN-only. That's no longer true (remote works via the relay) and `REMOTE.md` documents the real thing, so the doc had become actively misleading.
+- **Design mockups** — `stitch_omnicast_remote_control/` and `mobile-redesign/`. They did their job; the apps they described are built and shipped.
+- **`app icons/`** — the same artwork is already committed everywhere it's used (Android mipmaps at 5 densities, `desktop/assets/icon.png` + `.ico`, `web/public/`).
+- **Dead code** — 5 unreferenced Android drawables (`bg_card`, `ic_check`, `ic_globe`, `ic_key`, `ic_link`), 3 unused strings (`token_help`, `relay_token`, `allowed`), and 4 unused icon exports (`IconWifi`, `IconCell`, `IconChevronDown`, `IconPlug`).
+
+Live docs no longer link to deleted files. `CHANGELOG`/`MEMORY` keep their references — they're a record of what happened, not instructions.
+
+Verified nothing broke: `helper`, `relay` and `web` all build clean, and every remaining Android `@drawable`/`@string`/`R.*` reference resolves.
+
 ## [3.1.0] — desktop 3.1.0 / agent 3.1.0
 
 #### Fixed
