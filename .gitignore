@@ -4,6 +4,13 @@ dist/
 build/
 *.tsbuildinfo
 
+# electron desktop packaging output
+desktop/release/
+desktop/build/
+
+# staged client deliverables (.exe / .apk) — built, not source
+deliverables/
+
 # logs / env
 *.log
 .env

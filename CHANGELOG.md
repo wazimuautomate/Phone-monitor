@@ -5,6 +5,99 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this pr
 
 ## [Unreleased]
 
+### Desktop app v3 — complete UI redesign (sidebar shell + Control Room)
+
+#### Fixed (client review round 1)
+- **Rotate actually rotates now.** Two bugs, not one: the phone's `VirtualDisplay` is created with *fixed* bounds, so even when the handset rotated, the mirror kept the old portrait frame and just letterboxed the landscape picture inside it — the desktop could never show landscape. The agent now watches the real display and **rebuilds the VirtualDisplay + encoder at the new size**, and the fresh encoder emits a codec-config frame so the desktop's decoder re-sizes itself. The card and the Control Room stage now take their shape from the decoded frame, so **the stage really becomes landscape**. The agent also reports `canRotate` (the WRITE_SETTINGS grant), so the Rotate button is disabled with an explanation instead of silently doing nothing.
+- **Screen-off alerts work.** They only ever reacted to a broadcast, so a missed one left the desktop's view stuck and it never alerted again; a phone with no keyguard never fires `USER_PRESENT` at all. The agent now also listens for `ACTION_SCREEN_ON` and **carries the screen state in every 10s status frame** (from `PowerManager.isInteractive`), so it self-heals. The alert is on by default and is now called "Screen off".
+- **Devices are listed in the sidebar** instead of hidden behind a Devices page (page removed). Grouped Connected / Hidden / Disconnected with signal, battery and a contextual 3-dot menu (rendered through a portal so the sidebar's scroll container can't clip it).
+- **Header actions are labelled** (Refresh / Full screen / Customize / theme) — no more guessing at bare icons. Labels collapse to icons only on very narrow windows.
+- **Tile sizes are named** (S Small / M Medium / L Large / XL Extra large).
+- **Removed the hover "Control" overlay** on phone tiles — the Control button under each tile already does the job.
+
+The desktop dashboard was rebuilt from scratch on the phone app's palette, so the two products read as one system. The old single-screen grid is gone; the app is now a proper shell: **sidebar · header · monitor · status bar**, plus a dedicated **Control Room**.
+
+#### Added
+- **Collapsible sidebar** — logo + name, `Monitor` / `History` / `Settings`, a separator, then the **device list itself** (Connected / Hidden / Disconnected, each with signal, battery and a 3-dot menu), and the **live app version** pinned at the bottom.
+- **Header** — connected count, device **search**, and labelled actions: Refresh, Full screen, **Customize** (named tile sizes, auto vs fixed columns, rearrange) and **theme (System / Light / Dark)**.
+- **Monitor** — responsive grid that scales from a laptop to a TV (`auto-fill` + tile size, or a fixed column count). Each card: live dot, name + inline rename, **signal bars, battery, fps**, a full-height phone screen, and a **Control** button into the Control Room. Drag to reorder; demo phones and a guided empty state when nothing is connected.
+- **Control Room** — header (name, live state, fps, ms, signal, battery), the phone stage with tap / drag-swipe / wheel-scroll / keyboard typing, and a full control bar: **Back, Home, Recents, Notifications, Vol −/+, Rotate, Lock, Power, Screenshot, Record, Leave**. **Multiple phones can be added to the room** and controlled side by side (click a stage to make it active). **Leave always finalises and saves an in-progress recording.**
+- **History page** — every phone that ever connected (persisted), with last-seen, online state, control/reconnect and remove.
+- **Settings** — per-alert toggles (**connection, low battery + threshold, weak signal, screen lock**), tile size, columns, **screenshot & recording folders** (pick + open), demo phones, theme, and **Keep the screen awake** (a real `powerSaveBlocker`, so the wall of phones never blanks).
+- **Status bar** — copyable connect URL, a **How to connect** modal, and online/total counts.
+- **Screenshots & recordings** — captured straight off the decoder canvas (PNG / WebM via `MediaRecorder`) and written to the chosen folder by the Electron main process.
+
+#### Changed
+- **Protocol + agent now carry real data for the new UI** — `DeviceInfo` gained `signal` (0–4 bars) and `network` (wifi/cell); the agent reports them plus `charging` and its **own name** every 10s, so **renaming a phone on the handset syncs to the desktop**. Signal is best-effort and permission-free (Wi-Fi RSSI; cellular via `NetworkCapabilities` on Android 10+) — when a phone can't report it the UI shows flat/inert bars rather than a fake zero.
+- **New control commands**: `lock` (accessibility `GLOBAL_ACTION_LOCK_SCREEN`, API 28+) and `rotate` (portrait↔landscape; needs the WRITE_SETTINGS grant, offered on the phone's Settings tab — skipped silently when not granted).
+- Electron `main` gained IPC for keep-awake, capture saving, folder picking, version and fullscreen; `preload` exposes them as an optional bridge so the plain web build still works (browser fallbacks: download, Screen Wake Lock, DOM fullscreen).
+- Desktop version → **3.0.0**.
+
+> **Not built:** *location* alerts. Nothing in the pipeline collects location (the agent has no GPS permission and never has), so the toggle was left out rather than shipped inert.
+
+### Android Agent app — full four-tab UI redesign (Home / Remote / History / Settings)
+
+Rebuilt the on-device **Agent** UI from one long scroll into a clean four-tab shell with a bottom nav, matching the new design direction (plain words, real features only, same brand palette as the desktop app). **No functional flow was dropped** — local connect, relay/remote-code connect, accessibility remote control and connection history are all preserved and re-wired.
+
+#### Added
+- **Bottom-nav shell** (`activity_main.xml` + `BottomNavigationView`): one `MainActivity` hosts four page layouts (`page_home` / `page_remote` / `page_history` / `page_settings`) toggled by visibility — keeps the MediaProjection consent launcher, accessibility checks and history in one place.
+- **Home** — live status card (Monitoring / Connecting / Not connected), a Start/Stop monitoring button, this-phone info (name, local Wi-Fi IP, battery + charging), and a 3-step quick-setup carousel.
+- **Remote** — the connection hub: *On the same Wi-Fi* (desktop address + token → Connect) and *Away from home* (relay address + token → Start, with the live 9-digit code), plus the remote-control (accessibility) enable card and a live connection-status strip.
+- **History** — recent desktop connections as cards (tap to reconnect, long-press to remove, Clear all) with an empty state.
+- **Settings** — **theme switch: System / Light / Dark (default System)**; a permissions overview (screen capture, remote control, keep-running, notifications) with live on/off chips that deep-link to the right Android screen; editable phone name; **Monitor quality (Low/Medium/High)** that now actually drives capture resolution + bitrate; a "Later features" note (QR pairing — *Soon*); and About.
+- **Light theme**: the app is now DayNight — a full light palette (`values/colors.xml`) + dark palette (`values-night/colors.xml`), applied app-wide from a new `App : Application` and switched live via `AppCompatDelegate`.
+- ~18 hand-authored vector icons + card / chip / segment / step drawables on the brand palette (`#0B0B0D` / `#2FA44A`).
+
+#### Changed
+- Copy rewritten to plain words throughout ("monitor", not "stream"; removed marketing lines like "optimized for low-latency transmission").
+- `CaptureService` reads `EXTRA_QUALITY` → Low/Medium/High map to 720p·2 Mbps / 900p·3 Mbps / 1280p·6 Mbps.
+- `MainActivity` rewritten around the four tabs (page switching + all wiring); `strings.xml` / `colors.xml` / `themes.xml` reworked; `history_item.xml` restyled as a card row.
+
+> Built in CI (the dev laptop has no Android Studio); install `phone-monitor.apk` from the `capture-latest` release to test on a phone. HTML mockups of the four screens live in `mobile-redesign/`.
+
+### Remote access (out-of-home) — connect from any network
+
+A second connection method alongside the local (same-Wi-Fi) one: control a phone from a different network / city / country, AnyDesk-style, brokered by a hosted relay and paired with a 9-digit code.
+
+- **Relay server** (`relay/`): rebuilt from the WebRTC-signaling scaffold into an **agent↔viewer forwarding relay**. Phone and desktop each connect *outbound* (works through any NAT), get paired by a code, and it forwards H.264 + control both ways. It reclaims a phone's code across reconnects and replays the last `hello` + H.264 config frame so a late-joining desktop can register and decode immediately. Optional `RELAY_TOKEN` gate. Verified end-to-end locally with a simulated phone (code assigned, tile registered, video flowed, control reached the phone).
+- **Desktop `RelaySource`**: a remote phone joins the *exact same* pipeline as a LAN phone — it appears as a normal tile (connection `internet-app`) and works with the existing focused control view. Managed from **Settings → Remote phones** (relay URL + optional token + connect-by-code + list), and saved phones auto-reconnect after a restart. `remove` on a remote tile disconnects it.
+- **Android Remote mode**: alongside the untouched local flow, a "Remote access (anywhere)" section connects to the relay's `/agent`, shows the assigned pairing code as `916 429 577`, and keeps the code stable across reconnects. Streaming + control are identical to local.
+- **Deploy**: `render.yaml` (Render blueprint, relay only), `relay/Dockerfile`, and **`REMOTE.md`** (deploy + pairing + security guide, incl. a zero-hosting local-tunnel option). CI now typechecks the relay.
+- **Honest scope:** relay-routed media is encrypted in transit (wss) but passes *through* the relay — not end-to-end. True peer-to-peer WebRTC (media off the server) remains a later latency/privacy optimization.
+
+### v2 — Desktop app + AnyDesk-style remote control (in progress)
+
+The project pivoted from a hosted browser dashboard to an **installable desktop app** with real **remote control** of phones. See `REBUILD-PLAN.md` for the full plan.
+
+#### Added
+- **Electron desktop app** (`desktop/`): a native Windows window that embeds the helper in-process and serves the dashboard locally, then points a Chromium window at it. Builds a **portable `.exe`** (`npm run dist:desktop`) — double-click to run, no install. Assets are bundled with esbuild (`desktop/scripts/build.mjs`); the helper ships as a single `build/helper.cjs`.
+- **Remote control, end-to-end (AnyDesk-style):**
+  - Android **Agent** gained `ControlService` (an AccessibilityService) that injects **tap, swipe, Back/Home/Recents/Notifications/Power, volume, and text** — no root, no ADB. The capture WebSocket is now **bidirectional** (desktop → phone control frames), and an in-app card lets the user enable the service.
+  - Helper routes control: `/ws` accepts `{type:"control",deviceId,cmd}` and forwards to the owning source; `WifiAppSource.sendControl()` sends `{type:"control",cmd}` down the phone socket. New `ControlCmd` type (normalized 0..1 coordinates).
+  - Dashboard gained an **AnyDesk-style focused control view**: click a phone to open a large live screen with on-screen nav buttons; click→tap, drag→swipe, wheel→scroll, keyboard→text — plus a UI polish pass.
+- **WebRTC signaling relay** (`relay/`): a minimal broker (pairing codes + SDP/ICE relay, never touches media) for the future out-of-home path. TURN is documented, not yet implemented.
+- **CI**: `desktop.yml` builds the Windows portable `.exe` on every push and publishes it to the `desktop-latest` release (mirrors `android.yml` → `capture-latest`).
+- Helper `DeviceInfo` gained `width`/`height` (real screen px, for coordinate mapping) and `controllable`; the agent's `hello` now reports real display pixels.
+
+#### Changed
+- **Helper no longer depends on `express`** — a small built-in static server + `/health` replaces it, so the helper bundles cleanly into Electron. `index.ts` now exports `createHelper(options)` (embeddable) alongside its CLI bootstrap.
+- Monorepo gained `desktop` and `relay` workspaces and root scripts `prepare:desktop` / `start:desktop` / `dist:desktop`.
+- `CLAUDE.md` gained a v2-pivot banner; `README.md` rewritten around the desktop app + agent.
+
+#### Fixed (first real-phone test — Samsung SM-A055F, confirmed working)
+- **Phones couldn't connect to the desktop app at all.** The Electron shell started the helper on `127.0.0.1`, so it never listened on the Wi-Fi interface even though it advertised a `ws://<lan-ip>/app` URL — every phone timed out. It now binds all interfaces, and ranks real LAN ranges (192.168/10) above virtual adapters (Docker/WSL/Hyper-V) so the address shown first is the one a phone can reach.
+- **One phone appeared as two tiles** (one a demo-looking placeholder). The helper assigned a new id per socket, so a reconnect spawned a phantom. Devices are now keyed by the phone's stable `deviceId` (ANDROID_ID, sent in `hello`); a reconnect replaces the old socket and reuses the same tile. Also guarded a double `onStartCommand` that could run two streamers at once.
+- **Phone showed "Can't connect" even while streaming.** OkHttp fires `onFailure` on transient blips too; the app now shows "Reconnecting…" once it has connected, reserving "Can't connect — check address" for a genuine first-connect failure.
+- **"Enable remote control" stayed showing after enabling** (Samsung). Detection now uses `AccessibilityManager` (plus both flattened-name forms) instead of only parsing the `ENABLED_ACCESSIBILITY_SERVICES` string.
+- **Desktop opened full of demo devices.** Demo (`mock`) is now **off** by default (`PM_MOCK=1` to opt in); the dashboard starts blank with an empty state that shows the connect address and an "add demo phone" button.
+
+#### Retired
+- Cloud hosting of the dashboard (Docker/Render/`HOSTING.md`, dashboard-password login) is superseded by the desktop app + peer-to-peer model.
+
+---
+
+### v1 (cloud-hosting era — superseded by v2 above)
+
 ### Added
 - **Cloud hosting**: `Dockerfile`, `render.yaml`, and `HOSTING.md` (Railway/Render) so the dashboard runs remotely and phones connect from anywhere over `wss://`.
 - **Dashboard password** (`ACCESS_TOKEN`) with a login screen gating the live connection; `APP_TOKEN` still gates phone streams.

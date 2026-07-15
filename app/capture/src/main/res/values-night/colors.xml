@@ -1,0 +1,10 @@
+<resources>
+    <!-- DARK theme overrides. Accents & tints inherit from values/colors.xml. -->
+    <color name="pm_bg">#0B0B0D</color>
+    <color name="pm_surface">#141417</color>
+    <color name="pm_elev">#1D1D22</color>
+    <color name="pm_border">#26262B</color>
+    <color name="pm_text">#F2F3F5</color>
+    <color name="pm_muted">#9A9AA4</color>
+    <color name="pm_green_bright">#55D06E</color>
+</resources>

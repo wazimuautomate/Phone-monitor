@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Monitor Agent - Settings</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@100..900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "on-primary": "#003911",
+                    "on-primary-fixed": "#002107",
+                    "surface-container-lowest": "#0a1009",
+                    "surface-tint": "#6cde7c",
+                    "surface-container": "#1b211a",
+                    "on-primary-fixed-variant": "#00531c",
+                    "on-tertiary": "#363100",
+                    "on-surface": "#dee5d9",
+                    "on-tertiary-container": "#474000",
+                    "tertiary": "#dbc900",
+                    "background": "#0f150e",
+                    "surface-container-low": "#171d16",
+                    "surface-dim": "#0f150e",
+                    "on-secondary": "#690004",
+                    "surface-variant": "#30362f",
+                    "on-tertiary-fixed": "#201c00",
+                    "secondary-container": "#dc0313",
+                    "on-secondary-container": "#ffece9",
+                    "error": "#ffb4ab",
+                    "inverse-on-surface": "#2c322b",
+                    "secondary-fixed": "#ffdad5",
+                    "primary-fixed": "#89fb95",
+                    "on-tertiary-fixed-variant": "#4f4800",
+                    "primary": "#6cde7c",
+                    "on-primary-container": "#00320e",
+                    "on-error": "#690005",
+                    "tertiary-fixed-dim": "#dbc900",
+                    "primary-fixed-dim": "#6cde7c",
+                    "tertiary-fixed": "#f9e526",
+                    "primary-container": "#30a54b",
+                    "on-surface-variant": "#bdcab9",
+                    "on-secondary-fixed": "#410001",
+                    "tertiary-container": "#bdad00",
+                    "outline-variant": "#3e4a3d",
+                    "error-container": "#93000a",
+                    "inverse-surface": "#dee5d9",
+                    "on-error-container": "#ffdad6",
+                    "secondary": "#ffb4aa",
+                    "surface-container-high": "#252c24",
+                    "secondary-fixed-dim": "#ffb4aa",
+                    "surface": "#0f150e",
+                    "inverse-primary": "#006e28",
+                    "surface-container-highest": "#30362f",
+                    "surface-bright": "#343b33",
+                    "outline": "#889485",
+                    "on-background": "#dee5d9",
+                    "on-secondary-fixed-variant": "#930008"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "full": "9999px"
+            },
+            "spacing": {
+                    "card-padding": "16px",
+                    "stack-gap-sm": "8px",
+                    "container-padding": "20px",
+                    "stack-gap-md": "16px",
+                    "stack-gap-lg": "24px",
+                    "grid-gutter": "12px"
+            },
+            "fontFamily": {
+                    "headline-lg-mobile": ["Outfit"],
+                    "label-md": ["Outfit"],
+                    "headline-md": ["Outfit"],
+                    "body-lg": ["Outfit"],
+                    "display": ["Outfit"],
+                    "body-md": ["Outfit"],
+                    "headline-lg": ["Outfit"]
+            },
+            "fontSize": {
+                    "headline-lg-mobile": ["22px", {"lineHeight": "28px", "fontWeight": "600"}],
+                    "label-md": ["12px", {"lineHeight": "16px", "letterSpacing": "0.02em", "fontWeight": "500"}],
+                    "headline-md": ["20px", {"lineHeight": "28px", "fontWeight": "500"}],
+                    "body-lg": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                    "display": ["32px", {"lineHeight": "40px", "letterSpacing": "-0.02em", "fontWeight": "600"}],
+                    "body-md": ["14px", {"lineHeight": "20px", "fontWeight": "400"}],
+                    "headline-lg": ["24px", {"lineHeight": "32px", "letterSpacing": "-0.01em", "fontWeight": "600"}]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        body {
+            background-color: #0f150e;
+            color: #dee5d9;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        /* Custom UI Micro-interactions */
+        .settings-card {
+            background: #141417;
+            border: 1px solid #26262B;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .settings-card:active {
+            transform: scale(0.98);
+            border-color: #2FA44A;
+        }
+        .segmented-control {
+            background: #0B0B0D;
+            border: 1px solid #26262B;
+        }
+        .segmented-item {
+            transition: all 0.2s ease;
+        }
+        .segmented-item.active {
+            background-color: #2FA44A;
+            color: white;
+        }
+    </style>
+</head>
+<body class="min-h-screen pb-24">
+<!-- TopAppBar -->
+<header class="w-full top-0 sticky z-50 bg-background dark:bg-background border-b border-outline-variant dark:border-outline-variant flex justify-between items-center px-container-padding py-stack-gap-sm">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-primary" data-icon="sensors">sensors</span>
+<h1 class="font-headline-md text-headline-md-mobile font-bold text-primary dark:text-primary">Monitor Agent</h1>
+</div>
+<div class="flex items-center gap-4">
+<span class="material-symbols-outlined text-on-surface-variant" data-icon="cloud_done">cloud_done</span>
+</div>
+</header>
+<main class="px-container-padding pt-stack-gap-lg flex flex-col gap-stack-gap-lg max-w-2xl mx-auto">
+<!-- Profile Section -->
+<section class="flex flex-col items-center py-stack-gap-lg">
+<div class="relative">
+<div class="w-24 h-24 rounded-full border-2 border-primary p-1 overflow-hidden">
+<img class="w-full h-full object-cover rounded-full" data-alt="A professional close-up portrait of a technology specialist in a dimly lit, high-tech server room environment. The lighting is dominated by subtle green neon glows and deep shadows, reflecting a vigilant and quiet brand persona. The individual wears dark, minimalist clothing, blending into the sophisticated SaaS aesthetic of the monitor app." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAo7SgjdBJJfjcMzdR9C_bXWZn44a2u1N7LZp45cJOMy4j3qh0Pxibzf5qOnGoJ7SMEsEY04gdmdGTy9-31DEXlBfuW1Zwv5stb-wzMXcX7QK6fgFu2fA3BL_ICAlW32gIH1YG2_bBeU7zi1Y2vCBIjqYJuBKc4OZYp18hBFFkFb1QatWxeoJdKDq-ZaL87YNHXjbRObcfuQUPYm5OQX0mTENkukdCw6-YiVcDk0K0b5NCQxBzHzxYi6A"/>
+</div>
+<div class="absolute bottom-1 right-1 w-6 h-6 bg-primary rounded-full border-4 border-background flex items-center justify-center">
+<div class="w-2 h-2 bg-on-primary rounded-full animate-pulse"></div>
+</div>
+</div>
+<div class="text-center mt-stack-gap-sm">
+<h2 class="font-headline-lg-mobile text-headline-lg-mobile">Administrator</h2>
+<p class="font-body-md text-body-md text-on-surface-variant">Connected since 08:42 AM</p>
+</div>
+</section>
+<!-- Server Configuration -->
+<section>
+<h3 class="font-label-md text-label-md text-primary uppercase tracking-widest mb-stack-gap-sm px-1">Server Config</h3>
+<div class="settings-card rounded-xl p-card-padding flex flex-col gap-stack-gap-md">
+<div class="flex flex-col gap-1">
+<label class="font-label-md text-label-md text-on-surface-variant" for="helper-address">Helper Address</label>
+<div class="relative flex items-center">
+<input class="w-full bg-[#0B0B0D] border border-[#26262B] rounded-lg px-3 py-3 font-body-md text-body-md focus:border-primary focus:ring-0 outline-none transition-colors" id="helper-address" type="text" value="wss://agent.relay-01.io:8443"/>
+<span class="material-symbols-outlined absolute right-3 text-on-surface-variant text-[18px]" data-icon="link">link</span>
+</div>
+</div>
+</div>
+</section>
+<!-- Streaming Quality -->
+<section>
+<h3 class="font-label-md text-label-md text-primary uppercase tracking-widest mb-stack-gap-sm px-1">Streaming Quality</h3>
+<div class="settings-card rounded-xl p-card-padding">
+<div class="segmented-control flex p-1 rounded-lg">
+<button class="segmented-item flex-1 py-2 rounded font-label-md text-label-md text-on-surface-variant hover:text-on-surface active" onclick="selectQuality(this)">Low</button>
+<button class="segmented-item flex-1 py-2 rounded font-label-md text-label-md text-on-surface-variant hover:text-on-surface" onclick="selectQuality(this)">Medium</button>
+<button class="segmented-item flex-1 py-2 rounded font-label-md text-label-md text-on-surface-variant hover:text-on-surface" onclick="selectQuality(this)">High</button>
+</div>
+<p class="font-body-md text-body-md text-on-surface-variant mt-stack-gap-md px-1">
+                    Lower quality reduces latency on unstable connections.
+                </p>
+</div>
+</section>
+<!-- Appearance & Preferences -->
+<section>
+<h3 class="font-label-md text-label-md text-primary uppercase tracking-widest mb-stack-gap-sm px-1">Appearance</h3>
+<div class="settings-card rounded-xl overflow-hidden">
+<!-- Theme Toggle -->
+<div class="flex items-center justify-between p-card-padding border-b border-[#26262B] cursor-pointer hover:bg-surface-variant/20 transition-colors">
+<div class="flex items-center gap-4">
+<span class="material-symbols-outlined text-primary" data-icon="dark_mode">dark_mode</span>
+<span class="font-body-lg text-body-lg">Dark Mode</span>
+</div>
+<div class="w-12 h-6 bg-primary rounded-full relative flex items-center px-1">
+<div class="w-4 h-4 bg-white rounded-full translate-x-6"></div>
+</div>
+</div>
+<!-- Notifications -->
+<div class="flex items-center justify-between p-card-padding cursor-pointer hover:bg-surface-variant/20 transition-colors">
+<div class="flex items-center gap-4">
+<span class="material-symbols-outlined text-primary" data-icon="notifications">notifications</span>
+<span class="font-body-lg text-body-lg">Event Alerts</span>
+</div>
+<span class="material-symbols-outlined text-on-surface-variant" data-icon="chevron_right">chevron_right</span>
+</div>
+</div>
+</section>
+<!-- About & Support -->
+<section>
+<h3 class="font-label-md text-label-md text-primary uppercase tracking-widest mb-stack-gap-sm px-1">About</h3>
+<div class="settings-card rounded-xl overflow-hidden">
+<div class="flex items-center justify-between p-card-padding border-b border-[#26262B] cursor-pointer hover:bg-surface-variant/20 transition-colors">
+<div class="flex items-center gap-4">
+<span class="material-symbols-outlined text-on-surface-variant" data-icon="info">info</span>
+<span class="font-body-lg text-body-lg">Version</span>
+</div>
+<span class="font-body-md text-body-md text-on-surface-variant">v2.4.8-stable</span>
+</div>
+<div class="flex items-center justify-between p-card-padding border-b border-[#26262B] cursor-pointer hover:bg-surface-variant/20 transition-colors">
+<div class="flex items-center gap-4">
+<span class="material-symbols-outlined text-on-surface-variant" data-icon="help">help</span>
+<span class="font-body-lg text-body-lg">Support Docs</span>
+</div>
+<span class="material-symbols-outlined text-on-surface-variant" data-icon="open_in_new">open_in_new</span>
+</div>
+<div class="flex items-center justify-between p-card-padding cursor-pointer hover:bg-surface-variant/20 transition-colors">
+<div class="flex items-center gap-4">
+<span class="material-symbols-outlined text-error" data-icon="logout">logout</span>
+<span class="font-body-lg text-body-lg text-error">Disconnect Agent</span>
+</div>
+</div>
+</div>
+</section>
+</main>
+<!-- BottomNavBar -->
+<nav class="fixed bottom-0 w-full z-50 border-t border-outline-variant dark:border-outline-variant flex justify-around items-center h-16 bg-surface-container-low">
+<a class="flex flex-col items-center justify-center text-on-surface-variant hover:text-on-surface transition-all duration-200" href="#">
+<span class="material-symbols-outlined" data-icon="home">home</span>
+<span class="font-label-md text-label-md">Home</span>
+</a>
+<a class="flex flex-col items-center justify-center text-on-surface-variant hover:text-on-surface transition-all duration-200" href="#">
+<span class="material-symbols-outlined" data-icon="settings_remote">settings_remote</span>
+<span class="font-label-md text-label-md">Remote</span>
+</a>
+<a class="flex flex-col items-center justify-center text-on-surface-variant hover:text-on-surface transition-all duration-200" href="#">
+<span class="material-symbols-outlined" data-icon="history">history</span>
+<span class="font-label-md text-label-md">History</span>
+</a>
+<a class="flex flex-col items-center justify-center text-primary font-bold scale-105 transition-all duration-200" href="#">
+<span class="material-symbols-outlined" data-icon="settings" style="font-variation-settings: 'FILL' 1;">settings</span>
+<span class="font-label-md text-label-md">Settings</span>
+</a>
+</nav>
+<script>
+        function selectQuality(element) {
+            const items = element.parentElement.querySelectorAll('.segmented-item');
+            items.forEach(item => {
+                item.classList.remove('active', 'bg-primary', 'text-white');
+                item.classList.add('text-on-surface-variant');
+            });
+            element.classList.add('active', 'bg-primary', 'text-white');
+            element.classList.remove('text-on-surface-variant');
+            
+            // Haptic feedback simulation
+            if (window.navigator.vibrate) {
+                window.navigator.vibrate(10);
+            }
+        }
+    </script>
+</body></html>

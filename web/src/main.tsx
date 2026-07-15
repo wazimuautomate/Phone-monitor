@@ -1,9 +1,10 @@
 import React from "react";
 import { createRoot } from "react-dom/client";
 import { App } from "./App";
-import { applyTheme, getTheme } from "./lib/theme";
+import { applyTheme, getThemeMode } from "./lib/theme";
 
-applyTheme(getTheme());
+// Apply the saved theme before the first paint so there's no light/dark flash.
+applyTheme(getThemeMode());
 
 createRoot(document.getElementById("root")!).render(
   <React.StrictMode>

@@ -16,13 +16,25 @@ import android.media.MediaCodecInfo
 import android.media.MediaFormat
 import android.media.projection.MediaProjection
 import android.media.projection.MediaProjectionManager
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
+import android.net.wifi.WifiManager
 import android.os.BatteryManager
 import android.os.Build
+import android.os.Handler
 import android.os.IBinder
+import android.os.Looper
 import android.os.PowerManager
+import android.provider.Settings
+import android.view.Display
 import android.view.Surface
+import android.view.WindowManager
 import androidx.core.content.ContextCompat
+import org.json.JSONObject
 import java.nio.ByteBuffer
+import java.util.concurrent.Executors
+import java.util.concurrent.ScheduledExecutorService
+import java.util.concurrent.TimeUnit
 import kotlin.concurrent.thread
 
 /**
@@ -37,16 +49,29 @@ class CaptureService : Service() {
         const val EXTRA_RESULT_DATA = "resultData"
         const val EXTRA_HELPER_URL = "helperUrl"
         const val EXTRA_TOKEN = "token"
+        const val EXTRA_REMOTE = "remote"
+        const val EXTRA_QUALITY = "quality"
         const val EXTRA_WIDTH = "width"
         const val EXTRA_HEIGHT = "height"
         const val EXTRA_DPI = "dpi"
 
         private const val CHANNEL_ID = "pm_capture"
         private const val NOTIF_ID = 1
-        private const val MAX_DIM = 900
-        private const val BIT_RATE = 3_000_000
         private const val FRAME_RATE = 30
     }
+
+    // Longest-side cap and bitrate, chosen by the "Monitor quality" setting.
+    private var maxDim = 900
+    private var bitRate = 3_000_000
+
+    // The real display we're mirroring. Kept so a rotation can rebuild the
+    // VirtualDisplay/encoder at the NEW size — a VirtualDisplay has fixed
+    // bounds, so without this a rotated phone just letterboxes inside the old
+    // portrait frame and the desktop never sees a landscape picture.
+    private var screenW = 1080
+    private var screenH = 1920
+    private var screenDpi = 320
+    private var displayListener: DisplayManager.DisplayListener? = null
 
     private var projection: MediaProjection? = null
     private var virtualDisplay: VirtualDisplay? = null
@@ -54,9 +79,20 @@ class CaptureService : Service() {
     private var inputSurface: Surface? = null
     private var streamer: Streamer? = null
     private var wakeLock: PowerManager.WakeLock? = null
+    private var statusTimer: ScheduledExecutorService? = null
 
     @Volatile private var running = false
     @Volatile private var firstFrameSent = false
+
+    // Remote mode = connected outbound through the hosted relay (AnyDesk-style),
+    // vs. local mode = direct to the desktop helper on the LAN. Streaming is
+    // identical either way; this only shapes the status wording.
+    @Volatile private var remote = false
+
+    // True once the socket has opened at least once this session. After that,
+    // a dropped connection is a transient blip ("Reconnecting…"), NOT a "can't
+    // connect — check the address" error (the address is clearly reachable).
+    @Volatile private var everConnected = false
 
     private var receiverRegistered = false
     private val screenReceiver = object : BroadcastReceiver() {
@@ -64,7 +100,10 @@ class CaptureService : Service() {
             when (intent?.action) {
                 Intent.ACTION_SCREEN_OFF ->
                     streamer?.sendStatus("""{"type":"status","screenLocked":true}""")
-                Intent.ACTION_USER_PRESENT ->
+                // SCREEN_ON as well as USER_PRESENT: a phone with no keyguard never
+                // fires USER_PRESENT, which would otherwise leave the desktop
+                // believing the screen is still off forever.
+                Intent.ACTION_SCREEN_ON, Intent.ACTION_USER_PRESENT ->
                     streamer?.sendStatus("""{"type":"status","screenLocked":false}""")
             }
         }
@@ -74,6 +113,7 @@ class CaptureService : Service() {
         super.onCreate()
         val filter = IntentFilter().apply {
             addAction(Intent.ACTION_SCREEN_OFF)
+            addAction(Intent.ACTION_SCREEN_ON)
             addAction(Intent.ACTION_USER_PRESENT)
         }
         ContextCompat.registerReceiver(this, screenReceiver, filter, ContextCompat.RECEIVER_NOT_EXPORTED)
@@ -95,15 +135,23 @@ class CaptureService : Service() {
         val data = intent.getParcelableExtraCompat<Intent>(EXTRA_RESULT_DATA)
         val helperUrl = intent.getStringExtra(EXTRA_HELPER_URL).orEmpty()
         val token = intent.getStringExtra(EXTRA_TOKEN).orEmpty()
-        val screenW = intent.getIntExtra(EXTRA_WIDTH, 1080)
-        val screenH = intent.getIntExtra(EXTRA_HEIGHT, 1920)
-        val dpi = intent.getIntExtra(EXTRA_DPI, 320)
+        remote = intent.getBooleanExtra(EXTRA_REMOTE, false)
+        applyQuality(intent.getStringExtra(EXTRA_QUALITY).orEmpty())
+        screenW = intent.getIntExtra(EXTRA_WIDTH, 1080)
+        screenH = intent.getIntExtra(EXTRA_HEIGHT, 1920)
+        screenDpi = intent.getIntExtra(EXTRA_DPI, 320)
 
         if (data == null || helperUrl.isEmpty()) {
             CaptureState.set(CaptureState.ERROR, "Missing helper address")
             stopSelf()
             return START_NOT_STICKY
         }
+
+        // If a capture is already running (e.g. reconnecting from a history tap
+        // or a restart), tear it down first — never run two streamers that would
+        // fight over the same device socket and cause a reconnect loop.
+        if (streamer != null || running) teardownCapture()
+        everConnected = false
 
         val pm = getSystemService(Context.MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
         val mp = pm.getMediaProjection(resultCode, data)
@@ -117,25 +165,75 @@ class CaptureService : Service() {
             override fun onStop() = stopCapture()
         }, null)
 
-        val (w, h) = scale(screenW, screenH, MAX_DIM)
-        CaptureState.set(CaptureState.CONNECTING, "Connecting to helper…")
-        streamer = Streamer(helperUrl, token, buildHello(w, h)) { status -> onStreamerStatus(status) }
-            .also { it.start() }
-        startEncoder(w, h, dpi)
+        val (w, h) = scale(screenW, screenH, maxDim)
+        CaptureState.set(CaptureState.CONNECTING, "Connecting to ${peer()}…")
+        streamer = Streamer(
+            helperUrl,
+            token,
+            // Report the real display size so the desktop maps normalized
+            // control coordinates back to exact pixels.
+            buildHello(screenW, screenH),
+            onStatus = { status -> onStreamerStatus(status) },
+            onMessage = { text -> onControlMessage(text) },
+        ).also { it.start() }
+        startEncoder(w, h, screenDpi)
+        startStatusUpdates()
+        watchRotation()
 
         return START_STICKY
+    }
+
+    /**
+     * Handle a text frame from the desktop/relay.
+     *  - {"type":"control","cmd":{"action":…}} → forward to the accessibility service.
+     *  - {"type":"welcome","code":"916429577"} → the relay's assigned remote code;
+     *    save it (so we can reclaim the SAME code next time) and surface it to the UI.
+     * Anything malformed or unrecognised is ignored so a bad message can't crash the stream.
+     */
+    private fun onControlMessage(text: String) {
+        runCatching {
+            val obj = JSONObject(text)
+            when (obj.optString("type")) {
+                "control" -> {
+                    val cmd = obj.optJSONObject("cmd") ?: return@runCatching
+                    val control = Control.from(cmd) ?: return@runCatching
+                    ControlService.instance?.perform(control)
+                }
+                "welcome" -> {
+                    val code = obj.optString("code")
+                    if (code.isNotEmpty()) {
+                        getSharedPreferences("pm", MODE_PRIVATE)
+                            .edit().putString("remoteCode", code).apply()
+                        CaptureState.setCode(code)
+                    }
+                }
+            }
+            // Keep this `when` in statement position (its value is unused) so it
+            // needs neither an exhaustive `else` nor an `else` on the inner `if`.
+            Unit
+        }
     }
 
     private fun onStreamerStatus(status: String) {
         when {
             status == "open" -> {
-                CaptureState.set(CaptureState.STREAMING, "Streaming to helper")
+                everConnected = true
+                CaptureState.set(CaptureState.STREAMING, "Streaming to ${peer()}")
                 updateNotification("Streaming this screen")
             }
             status.startsWith("error: ") -> {
                 val reason = status.removePrefix("error: ")
-                CaptureState.set(CaptureState.ERROR, "Can’t connect — $reason")
-                updateNotification("Reconnecting… ($reason)")
+                if (everConnected) {
+                    // We were connected, so the address/Wi-Fi are fine — this is a
+                    // transient drop. Don't scare the user with "can't connect".
+                    CaptureState.set(CaptureState.CONNECTING, "Reconnecting…")
+                    updateNotification("Reconnecting… ($reason)")
+                } else {
+                    // Never connected this session — the address/token/Wi-Fi is the
+                    // likely problem, so surface it.
+                    CaptureState.set(CaptureState.ERROR, "Can’t connect — $reason")
+                    updateNotification("Can’t connect — $reason")
+                }
             }
             else -> {
                 // Clean close (e.g. server restarted) — the streamer auto-retries.
@@ -147,14 +245,18 @@ class CaptureService : Service() {
 
     /** Definitive "we're live" signal: the first encoded frame reached the socket. */
     private fun onFirstFrame() {
-        CaptureState.set(CaptureState.STREAMING, "Streaming to helper")
+        everConnected = true
+        CaptureState.set(CaptureState.STREAMING, "Streaming to ${peer()}")
         updateNotification("Streaming this screen")
     }
+
+    /** How we word the peer in status text: the hosted relay vs. the local helper. */
+    private fun peer(): String = if (remote) "relay" else "helper"
 
     private fun startEncoder(w: Int, h: Int, dpi: Int) {
         val format = MediaFormat.createVideoFormat(MediaFormat.MIMETYPE_VIDEO_AVC, w, h).apply {
             setInteger(MediaFormat.KEY_COLOR_FORMAT, MediaCodecInfo.CodecCapabilities.COLOR_FormatSurface)
-            setInteger(MediaFormat.KEY_BIT_RATE, BIT_RATE)
+            setInteger(MediaFormat.KEY_BIT_RATE, bitRate)
             setInteger(MediaFormat.KEY_FRAME_RATE, FRAME_RATE)
             setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, 1)
         }
@@ -208,12 +310,192 @@ class CaptureService : Service() {
         }
     }
 
-    private fun buildHello(w: Int, h: Int): String =
-        """{"type":"hello",""" +
-            """"model":${jsonStr(Build.MODEL)},""" +
-            """"manufacturer":${jsonStr(Build.MANUFACTURER)},""" +
-            """"androidVersion":${jsonStr(Build.VERSION.RELEASE)},""" +
-            """"width":$w,"height":$h,"battery":${batteryPercent()},"screenLocked":false}"""
+    private fun buildHello(screenW: Int, screenH: Int): String {
+        val (net, bars) = networkState()
+        val sb = StringBuilder()
+        sb.append("""{"type":"hello",""")
+        // Stable per-device id (ANDROID_ID) so the desktop keeps ONE tile
+        // across reconnects instead of spawning a phantom duplicate.
+        sb.append(""""deviceId":${jsonStr(androidId())},""")
+        // The name the user set in the app (Settings → Phone name); the desktop
+        // shows it, so renaming on the handset syncs across.
+        sb.append(""""name":${jsonStr(displayName())},""")
+        sb.append(""""model":${jsonStr(Build.MODEL)},""")
+        sb.append(""""manufacturer":${jsonStr(Build.MANUFACTURER)},""")
+        sb.append(""""androidVersion":${jsonStr(Build.VERSION.RELEASE)},""")
+        sb.append(""""width":$screenW,"height":$screenH,""")
+        sb.append(""""battery":${batteryPercent()},"charging":${isCharging()},""")
+        sb.append(""""network":${jsonStr(net)},""")
+        sb.append(""""canRotate":${canRotate()},""")
+        if (bars != null) sb.append(""""signal":$bars,""")
+        sb.append(""""screenLocked":${!isScreenOn()}}""")
+        return sb.toString()
+    }
+
+    /** Live stats the desktop shows: battery, charging, signal bars, and the name. */
+    private fun buildStatus(): String {
+        val (net, bars) = networkState()
+        val sb = StringBuilder()
+        sb.append("""{"type":"status",""")
+        sb.append(""""battery":${batteryPercent()},"charging":${isCharging()},""")
+        // Carry the screen state on every tick, not just on the SCREEN_OFF/ON
+        // broadcast. If a broadcast is ever missed the desktop would otherwise
+        // stay stuck on a stale value and never alert again; this self-heals.
+        sb.append(""""screenLocked":${!isScreenOn()},""")
+        sb.append(""""name":${jsonStr(displayName())},""")
+        sb.append(""""canRotate":${canRotate()},""")
+        sb.append(""""network":${jsonStr(net)}""")
+        if (bars != null) sb.append(""","signal":$bars""")
+        sb.append("}")
+        return sb.toString()
+    }
+
+    /** True while the display is on. */
+    private fun isScreenOn(): Boolean = runCatching {
+        (getSystemService(Context.POWER_SERVICE) as PowerManager).isInteractive
+    }.getOrDefault(true)
+
+    // ---- Rotation ----
+
+    /**
+     * Watch the real display and rebuild the capture whenever it changes shape.
+     *
+     * A VirtualDisplay has FIXED bounds, so when the phone rotates the mirror
+     * keeps the old portrait frame and just letterboxes the landscape picture
+     * inside it — the desktop would never receive a landscape image. Recreating
+     * the VirtualDisplay + encoder at the new size makes the stream genuinely
+     * follow the phone, and the fresh encoder emits a new codec-config frame so
+     * the desktop's decoder re-sizes itself automatically.
+     */
+    private fun watchRotation() {
+        if (displayListener != null) return
+        val dm = getSystemService(Context.DISPLAY_SERVICE) as DisplayManager
+        val listener = object : DisplayManager.DisplayListener {
+            override fun onDisplayAdded(displayId: Int) {}
+            override fun onDisplayRemoved(displayId: Int) {}
+            override fun onDisplayChanged(displayId: Int) {
+                if (displayId != Display.DEFAULT_DISPLAY) return
+                onDisplayResized()
+            }
+        }
+        runCatching { dm.registerDisplayListener(listener, Handler(Looper.getMainLooper())) }
+            .onSuccess { displayListener = listener }
+    }
+
+    private fun stopWatchingRotation() {
+        val listener = displayListener ?: return
+        displayListener = null
+        runCatching {
+            (getSystemService(Context.DISPLAY_SERVICE) as DisplayManager).unregisterDisplayListener(listener)
+        }
+    }
+
+    /** onDisplayChanged also fires for brightness etc., so only act on a real resize. */
+    private fun onDisplayResized() {
+        if (!running) return
+        val (w, h) = realScreenSize() ?: return
+        if (w == screenW && h == screenH) return
+        screenW = w
+        screenH = h
+        val (ew, eh) = scale(w, h, maxDim)
+        rebuildEncoder(ew, eh)
+    }
+
+    /** Swap the encoder + VirtualDisplay for new dimensions, keeping the socket. */
+    private fun rebuildEncoder(w: Int, h: Int) {
+        running = false
+        runCatching { virtualDisplay?.release() }
+        runCatching { encoder?.stop() }
+        runCatching { encoder?.release() }
+        runCatching { inputSurface?.release() }
+        virtualDisplay = null
+        encoder = null
+        inputSurface = null
+        runCatching { startEncoder(w, h, screenDpi) }
+    }
+
+    private fun realScreenSize(): Pair<Int, Int>? = runCatching {
+        val wm = getSystemService(Context.WINDOW_SERVICE) as WindowManager
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            val b = wm.currentWindowMetrics.bounds
+            b.width() to b.height()
+        } else {
+            val m = android.util.DisplayMetrics()
+            @Suppress("DEPRECATION")
+            wm.defaultDisplay.getRealMetrics(m)
+            m.widthPixels to m.heightPixels
+        }
+    }.getOrNull()
+
+    /** The desktop's Rotate button only works if the user granted WRITE_SETTINGS. */
+    private fun canRotate(): Boolean = runCatching { Settings.System.canWrite(this) }.getOrDefault(false)
+
+    /** Push battery / charging / signal / name to the desktop every 10s. */
+    private fun startStatusUpdates() {
+        stopStatusUpdates()
+        val ex = Executors.newSingleThreadScheduledExecutor()
+        statusTimer = ex
+        ex.scheduleWithFixedDelay(
+            { runCatching { streamer?.sendStatus(buildStatus()) } },
+            5, 10, TimeUnit.SECONDS,
+        )
+    }
+
+    private fun stopStatusUpdates() {
+        runCatching { statusTimer?.shutdownNow() }
+        statusTimer = null
+    }
+
+    private fun displayName(): String =
+        getSharedPreferences("pm", MODE_PRIVATE).getString("deviceName", null)
+            ?.takeIf { it.isNotBlank() } ?: Build.MODEL
+
+    private fun isCharging(): Boolean = runCatching {
+        val bm = getSystemService(Context.BATTERY_SERVICE) as BatteryManager
+        bm.isCharging
+    }.getOrDefault(false)
+
+    /** The phone's uplink and its signal bars (0..4), or null bars if unknown. */
+    private fun networkState(): Pair<String, Int?> = runCatching {
+        val cm = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+        val active = cm.activeNetwork ?: return@runCatching "none" to null
+        val caps = cm.getNetworkCapabilities(active) ?: return@runCatching "none" to null
+        when {
+            caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) -> "wifi" to wifiBars()
+            caps.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) -> "cell" to cellBars(caps)
+            else -> "none" to null
+        }
+    }.getOrDefault("none" to null)
+
+    @Suppress("DEPRECATION")
+    private fun wifiBars(): Int? = runCatching {
+        val wm = applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
+        WifiManager.calculateSignalLevel(wm.connectionInfo.rssi, 5)
+    }.getOrNull()
+
+    /**
+     * Cellular bars WITHOUT the READ_PHONE_STATE permission: NetworkCapabilities
+     * carries the signal strength on Android 10+. When it isn't available we
+     * report nothing rather than a misleading zero.
+     */
+    private fun cellBars(caps: NetworkCapabilities): Int? {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return null
+        val dbm = runCatching { caps.signalStrength }.getOrNull() ?: return null
+        if (dbm == Int.MIN_VALUE || dbm >= 0) return null
+        return when {
+            dbm >= -85 -> 4
+            dbm >= -95 -> 3
+            dbm >= -105 -> 2
+            dbm >= -115 -> 1
+            else -> 0
+        }
+    }
+
+    @Suppress("HardwareIds")
+    private fun androidId(): String =
+        runCatching {
+            Settings.Secure.getString(contentResolver, Settings.Secure.ANDROID_ID)
+        }.getOrNull().orEmpty()
 
     private fun batteryPercent(): Int {
         val bm = getSystemService(Context.BATTERY_SERVICE) as BatteryManager
@@ -255,9 +537,12 @@ class CaptureService : Service() {
         nm.notify(NOTIF_ID, buildNotification(text))
     }
 
-    private fun stopCapture() {
+    /** Release capture/stream resources. Leaves the wake lock and UI state alone. */
+    private fun teardownCapture() {
         running = false
         firstFrameSent = false
+        stopStatusUpdates()
+        stopWatchingRotation()
         runCatching { virtualDisplay?.release() }
         runCatching { encoder?.stop() }
         runCatching { encoder?.release() }
@@ -267,8 +552,13 @@ class CaptureService : Service() {
         encoder = null
         inputSurface = null
         projection = null
-        streamer?.stop()
+        runCatching { streamer?.stop() }
         streamer = null
+    }
+
+    private fun stopCapture() {
+        teardownCapture()
+        everConnected = false
         runCatching { if (wakeLock?.isHeld == true) wakeLock?.release() }
         wakeLock = null
         CaptureState.set(CaptureState.IDLE, "Stopped")
@@ -291,6 +581,24 @@ class CaptureService : Service() {
     }
 
     private fun even(v: Int): Int = if (v % 2 == 0) v else v - 1
+
+    /** Map the "Monitor quality" choice to a longest-side cap and bitrate. */
+    private fun applyQuality(quality: String) {
+        when (quality) {
+            "low" -> {
+                maxDim = 720
+                bitRate = 2_000_000
+            }
+            "high" -> {
+                maxDim = 1280
+                bitRate = 6_000_000
+            }
+            else -> {
+                maxDim = 900
+                bitRate = 3_000_000
+            }
+        }
+    }
 
     private fun jsonStr(s: String?): String {
         val safe = (s ?: "").replace("\\", "\\\\").replace("\"", "\\\"")

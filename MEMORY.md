@@ -5,6 +5,93 @@ Newest first. One entry per work session: what was done, decisions made, and wha
 
 ---
 
+## 2026-07-15 — Desktop app v3: complete UI redesign (sidebar shell + Control Room)
+
+Client: "the desktop UI is very bad with limited features — complete fresh redesign, use the mobile app's colour theme." Rebuilt `web/` from scratch (old layout deliberately discarded); helper/Electron/agent extended to feed it real data.
+
+- **Shell:** `App.tsx` = Sidebar (collapsible; Monitor/History/Settings · separator · Devices+count · version pinned bottom) + TopBar (count, search, refresh, fullscreen, customize, theme) + page + StatusBar (copyable URL, How-to-connect modal, counts). Pages: Monitor / Devices / History / Settings. Control Room is an overlay.
+- **Control Room:** multi-phone stages (add others, click to activate), header metrics (fps/ms/signal/battery), full bar (Back/Home/Recents/Notifs/Vol±/Rotate/Lock/Power/Screenshot/Record/Leave). Leave always finalises+saves a running recording. Captures come off the decoder canvas (PNG / WebM MediaRecorder) → Electron writes to the chosen folder.
+- **New real data (protocol):** `DeviceInfo.signal` (0–4) + `.network`; agent sends `name`/`charging`/`signal`/`network` in `hello` **and a status frame every 10s** → **phone rename syncs to desktop**. Parsing shared via `helper/src/sources/phone-fields.ts` (used by both wifi-app-source and relay-source). Signal is permission-free best-effort (Wi-Fi RSSI; cell via `NetworkCapabilities.getSignalStrength()` API29+); **unknown → undefined → inert bars, never a fake 0**.
+- **New controls:** `key:"lock"` (GLOBAL_ACTION_LOCK_SCREEN, API28+) and `{action:"rotate"}` (USER_ROTATION; needs WRITE_SETTINGS — new permission row on the phone's Settings tab; no-ops if ungranted).
+- **Electron:** IPC for keep-awake (`powerSaveBlocker` — client called this "very very important"), save-capture, pick-folder, app-version, fullscreen(+event). `lib/desktop.ts` wraps it so the plain web build degrades (download / Screen Wake Lock / DOM fullscreen). Desktop → **3.0.0**.
+- **Declined (honestly):** *location* alerts — no location anywhere in the pipeline; not shipping an inert toggle.
+
+**Verified for real, not just typechecked:** ran the app locally and drove it over CDP (`--remote-debugging-port`) — screenshotted Monitor (6 cards), Devices, History, Settings, Control Room, 2-phone room, light theme; 0 console errors; the "Weak signal" toast fired from the new signal field.
+
+**Gotchas for next time:** this shell has `ELECTRON_RUN_AS_NODE=1` set — `npx electron` runs as plain Node (`app` undefined) unless you `unset` it. And a running copy of the app holds the single-instance lock, so a dev instance silently quits — use `--user-data-dir=<tmp>` + `PM_PORT=<other>` to run alongside it.
+
+---
+
+## 2026-07-15 — Android Agent app: full four-tab UI redesign (+ light/dark theme)
+
+Client ran the earlier Agent screens through Google Stitch, liked the look, and asked to implement it in the real app — but Stitch had invented irrelevant content (streaming jargon, a fake "Administrator" person, cloud relay, iPad/MacBook history). Redesigned to match our actual product, then built it in the Android app.
+
+- **Structure:** single `MainActivity` + `BottomNavigationView` hosting four `page_*.xml` layouts toggled by visibility (no fragments — keeps the consent launcher / accessibility checks / history in one place, lowest CI-build risk since the laptop can't build Android locally).
+  - **Home** = status + connected-to + this-phone (name / local IP / battery) + quick setup.
+  - **Remote** = the connection hub: *On the same Wi-Fi* (helper address + token → Connect) **and** *Away from home* (relay address + token → Start + live 9-digit code) + remote-control (accessibility) enable. Preserves both existing flows (`normalizeHelperUrl` / `normalizeRelayBase`, `beginCapture(remote)`).
+  - **History** = recent local connections (tap reconnect, long-press remove, Clear all) — unchanged storage.
+  - **Settings** = **theme (System/Light/Dark, default System)**, permissions overview w/ live chips (screen capture, remote control, keep-running, notifications), editable phone name, **Monitor quality (Low/Med/High → real `EXTRA_QUALITY` on `CaptureService`: 720p/900p/1280p + 2/3/6 Mbps)**, "Later features" (QR pairing = Soon), About.
+- **Theme:** app converted to `Theme.Material3.DayNight`; light palette in `values/colors.xml`, dark in `values-night/colors.xml`; applied app-wide by new `App : Application` and switched live via `AppCompatDelegate.setDefaultNightMode` (pref `themeMode`). All layouts use adaptive `pm_*` colors (no more hardcoded `pm_white`).
+- **Copy:** plain words ("monitor" not "stream"); removed marketing/fake content.
+- **Assets:** ~18 vector icons + card20 / chip / seg / step / tag drawables + bottom-nav menu + `nav_item_color` selector + `Pm.*` row/section/seg styles.
+- **Verification:** can't build locally; cross-checked every `@string`/`@drawable`/`@color`/`@style`/`R.*` reference and every `binding.pageX.<id>` against its layout — all resolve. Relies on CI (`android.yml`) to compile the APK.
+
+**Note:** the repo advanced mid-session (relay feature landed at commit 902d33d) — folded the relay/remote-code path into the Remote tab rather than treating "internet" as a future feature. HTML mockups in `mobile-redesign/`.
+
+---
+
+## 2026-07-15 — Remote access (out-of-home) implemented: relay + pairing codes
+
+Client asked for TWO connection methods: the existing LAN one **and** AnyDesk-style remote (control a phone from another city). Built the remote path **relay-brokered**, reusing the entire H.264 → WebCodecs → control pipeline:
+
+- **`relay/`** rebuilt from the signaling scaffold into an **agent↔viewer forwarding relay**: pairs a phone (`/agent`) and a desktop (`/viewer?code=`) by a 9-digit code, forwards video + control, reclaims a phone's code across reconnects, and replays the cached `hello` + H.264 config so a late-joining viewer registers/decodes at once. Optional `RELAY_TOKEN`. **Verified end-to-end locally** with a simulated phone (code assigned, tile registered, 8 video frames relayed, a tap reached the phone).
+- **helper `RelaySource`** (viewer client) → a remote phone appears as a normal `internet-app` tile. `SourceManager.addRelay/removeRelay/relayCodes`; `ws-hub` handles `relay-connect`/`relay-disconnect`; `remove` on a `relay-<code>` tile disconnects it.
+- **web**: Settings → Remote phones (relay URL + optional token + connect-by-code + list; auto-reconnect saved phones on hub open). localStorage `pm.relayUrl` / `pm.relayToken` / `pm.remotePhones`.
+- **android**: "Remote access" mode — `normalizeRelayBase` (never appends `/app`), connects to `<base>/agent?code=<saved>`, handles `{type:"welcome",code}` → prefs `remoteCode` + `CaptureState.code` → displays `916 429 577`. Local mode untouched; `CaptureService.remote` flag + `EXTRA_REMOTE`.
+- **deploy**: `render.yaml` (relay only, `rootDir: relay`), `relay/Dockerfile`, `REMOTE.md`; `ci.yml` typechecks relay.
+
+Shipped `PhoneMonitor-2.1.0-portable.exe` + rebuilt `phone-monitor.apk` (CI).
+
+**Protocol** (agent↔relay↔viewer): agent → `/agent` → relay `{type:"welcome",code}`; then agent streams `hello`/`status`/binary `[type+H.264]`, receives `{type:"control",cmd}`. viewer → `/viewer?code=` → relay `{type:"linked"|"waiting"}`, receives forwarded agent frames, sends `control`. Relay control-plane types: welcome/linked/waiting/agent-left/error.
+
+**Honest scope / next:** media flows THROUGH the relay (wss encrypted in transit, NOT end-to-end). True WebRTC P2P (media off the server) deferred — needs a native WebRTC stack on Android. **Remote is inert until the relay is deployed publicly** (Render blueprint) — the one infra step the owner does, like the v1 Render deploy. This is the R3 (relay+pairing) approach; R2 (WebRTC transport) is now reframed as a later optimization.
+
+---
+
+## 2026-07-15 — v2 fixes CONFIRMED on a real phone; connectivity Q&A
+
+**Client tested the fixed build on a real Samsung SM-A055F — LAN view + AnyDesk-style control work, and all four reported bugs are fixed:**
+- One phone = one tile — helper keys app devices by the phone's stable ANDROID_ID (now sent in `hello`) and replaces the stale socket on reconnect instead of spawning a phantom placeholder tile. Also guarded a double `onStartCommand` that ran two streamers.
+- No more false "Can't connect" while streaming — Android tracks `everConnected`; after the first open, drops show "Reconnecting…", and "Can't connect — check address" is reserved for a genuine first-connect failure.
+- Accessibility "Enable remote control" card flips to Enabled — detection now uses `AccessibilityManager` (Samsung formats `ENABLED_ACCESSIBILITY_SERVICES` differently) plus both flattened-name forms.
+- Desktop starts blank — `mock` off by default (was on); empty state shows the connect address + an "add demo phone" button. (Earlier same-day fix: the Electron helper had bound loopback-only, so phones couldn't connect at all — now binds 0.0.0.0 and ranks real Wi-Fi IPs above virtual adapters.)
+Shipped: `PhoneMonitor-2.0.1-portable.exe` + rebuilt `phone-monitor.apk` (both verified; APK dex confirmed to contain the new code).
+
+**Direction:** UI is deliberately **deprioritized** — focus is logic robustness. **Remote access is NOT built yet:** the connect link is a private LAN address (192.168/8787), so it only works on the same Wi-Fi.
+
+**Connectivity plan (client asked; recorded in `CONNECTIVITY.md`):** ONE adaptive method = WebRTC + a thin signaling/TURN relay (`relay/` scaffolded). ICE auto-tiers same-LAN → direct P2P internet → TURN fallback, so "same-house different network" and "different country" are the *same* problem — both solved by the one WebRTC path (LAN stays as an optional turbo). Remote pairing shifts from typing an IP to an AnyDesk-style **code**. Interim option if remote is needed fast: host the helper as a cloud dumb-relay (v1 Render approach) — works anywhere but routes all video through the server. Next milestone: build the WebRTC path (`REBUILD-PLAN.md` R2–R3). No decision yet on proper-vs-interim.
+
+---
+
+## 2026-07-14 — v2 pivot: desktop app + AnyDesk-style remote control (built)
+
+**Scope change** (client, after the v1 demo): from a hosted browser dashboard to an **installable desktop app + phone agent** with real **remote control** (AnyDesk-style), near *and* far; his phones all have Dev Options; UI + realtime are paramount; friends will use it (monetization later — free tier 1 device / accounts later). Full plan in `REBUILD-PLAN.md`. Decisions locked: WebRTC P2P + relay fallback; mobile = agent **and** controller; Electron; standalone v1 (him).
+
+**Built this session** (parallelized: 3 subagents for app/, web/, relay/ + main-thread integration):
+- **Electron desktop app** (`desktop/`): `main.js` starts the helper in-process (`createHelper()`) and opens a Chromium window at `http://127.0.0.1:8787`. Assets bundled by esbuild (`scripts/build.mjs`): `web/dist` → `build/web`, helper → single `build/helper.cjs`. **Built + verified a portable `.exe`** (`desktop/release/PhoneMonitor-2.0.0-portable.exe`, 71 MB): launched it, embedded helper served `/health` 200 + the dashboard, clean shutdown.
+- **Helper**: dropped `express` (tiny built-in static server + `/health`) so it bundles into Electron; `index.ts` now exports `createHelper(opts)` + keeps CLI. **Control channel**: `ControlCmd` type (normalized 0..1 coords), `/ws` `{type:"control",deviceId,cmd}` → `SourceManager.sendControl` → `WifiAppSource.sendControl` sends `{type:"control",cmd}` down the phone socket. `DeviceInfo` gained width/height/controllable.
+- **Android Agent** (`app/`): new `ControlService` (AccessibilityService) injects tap/swipe/back/home/recents/notifications/power/volume/text — no root/ADB. Capture WS is now bidirectional; `CaptureService` parses control frames → `ControlService.instance.perform`. `hello` reports real display px. Enable-accessibility card in `MainActivity`.
+- **Web** (`web/`): AnyDesk-style **FocusedView** (click a card → big screen + on-screen nav bar; click→tap, drag→swipe, wheel→scroll, keys→text) + `sendControl` on the ws hub + `video-bus` caches the codec config for late subscribers + a UI polish pass. tsc clean.
+- **Relay** (`relay/`): minimal signaling broker (pairing codes + SDP/ICE relay, no media) for the future remote path; TURN documented not implemented. Typechecks clean.
+- **CI**: `desktop.yml` builds the portable `.exe` (→ `desktop-latest` release); `android.yml` already builds the APK (→ `capture-latest`); `ci.yml` skips Electron's binary download.
+- **Docs**: `REBUILD-PLAN.md`, CLAUDE v2 banner, README rewrite, CHANGELOG v2 section.
+
+**Verified locally**: helper typecheck, web `vite build`, relay typecheck, helper esbuild bundle boots, and the packaged `.exe` runs and serves. **APK** builds in CI only (no local Android Studio).
+
+**Next**: push `feature` → CI produces `.apk` + CI `.exe`; then WebRTC remote path (wire `relay/` + pairing into desktop & agent), ADB turbo, Controller app, then monetization. Merge to `main` once the client confirms on real phones.
+
+---
+
 ## 2026-07-14 — Diagnose live Render deploy + make phone connection self-explaining
 
 **Tested against the real deployment** (`phone-monitor-yxbo.onrender.com`, creds the owner will rotate):

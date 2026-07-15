@@ -1,52 +1,57 @@
-import { IconLink, IconPhone } from "../lib/icons";
-import { CopyableUrl } from "./CopyableUrl";
+import { useState } from "react";
+import { IconCopy, IconHelp, IconLink } from "../lib/icons";
 
 interface StatusBarProps {
+  url: string | null;
+  tokenRequired: boolean;
   online: number;
   total: number;
-  connected: boolean;
-  avgFps: number;
-  hiddenCount: number;
-  primaryUrl: string | null;
-  onShowHidden: () => void;
+  onHowTo: () => void;
 }
 
-export function StatusBar({
-  online,
-  total,
-  connected,
-  avgFps,
-  hiddenCount,
-  primaryUrl,
-  onShowHidden,
-}: StatusBarProps) {
-  const allOnline = total > 0 && online === total;
+export function StatusBar({ url, tokenRequired, online, total, onHowTo }: StatusBarProps) {
+  const [copied, setCopied] = useState(false);
+
+  const copy = async () => {
+    if (!url) return;
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1400);
+    } catch {
+      /* clipboard blocked — the address is still selectable */
+    }
+  };
+
   return (
     <footer className="statusbar">
-      <div className="status-left">
-        <span className={`dot ${allOnline ? "ok" : total ? "warn" : "bad"}`} />
-        {total === 0 ? "No devices" : allOnline ? "All devices online" : `${online} of ${total} online`}
-        {hiddenCount > 0 && (
-          <button className="hidden-btn" onClick={onShowHidden} title="Show hidden devices">
-            <IconPhone /> {hiddenCount} hidden
+      {url ? (
+        <span className="status-url" title="The address to enter in the phone app">
+          <IconLink />
+          <code>{url}</code>
+          <button className="copy-btn" onClick={copy} aria-label="Copy address">
+            <IconCopy />
           </button>
-        )}
-      </div>
+          {copied && <span className="copied">Copied</span>}
+        </span>
+      ) : (
+        <span>Finding this PC’s Wi-Fi address…</span>
+      )}
 
-      <div className="status-center">
-        {online}/{total} Devices
-      </div>
+      {tokenRequired && <span className="chip warn">token required</span>}
 
-      <div className="status-right">
-        {primaryUrl && (
-          <span className="status-url" title="Capture-app address — click to copy">
-            <IconLink />
-            <CopyableUrl url={primaryUrl} />
-          </span>
-        )}
+      <button className="status-link" onClick={onHowTo}>
+        <IconHelp />
+        How to connect
+      </button>
+
+      <span className="status-right">
+        <span>
+          <b style={{ color: "var(--green-bright)" }}>{online}</b> online
+        </span>
         <span className="sep">·</span>
-        <span className={`dot ${connected ? "ok" : "bad"}`} /> FPS {avgFps}
-      </div>
+        <span>{total} total</span>
+      </span>
     </footer>
   );
 }

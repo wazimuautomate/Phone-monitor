@@ -1,35 +1,65 @@
 package com.phonemonitor.capture
 
+import android.accessibilityservice.AccessibilityServiceInfo
 import android.app.Activity
+import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.content.SharedPreferences
 import android.content.pm.PackageManager
 import android.content.res.ColorStateList
 import android.media.projection.MediaProjectionManager
 import android.net.Uri
+import android.os.BatteryManager
 import android.os.Build
 import android.os.Bundle
 import android.os.PowerManager
 import android.provider.Settings
+import android.text.TextUtils
 import android.util.DisplayMetrics
 import android.view.View
+import android.view.ViewGroup
+import android.view.accessibility.AccessibilityManager
+import android.view.animation.OvershootInterpolator
+import android.widget.EditText
+import android.widget.TextView
+import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import androidx.appcompat.app.AppCompatDelegate
 import androidx.core.content.ContextCompat
 import com.google.android.material.button.MaterialButton
 import com.phonemonitor.capture.databinding.ActivityMainBinding
+import com.phonemonitor.capture.databinding.ViewSplashBinding
 import org.json.JSONArray
 import org.json.JSONObject
+import java.net.Inet4Address
+import java.net.NetworkInterface
 
+/**
+ * Single-activity, four-tab shell (Home / Remote / History / Settings). One
+ * activity hosts four page layouts and toggles their visibility from the bottom
+ * nav — this keeps the MediaProjection consent launcher, accessibility checks and
+ * connection history in one place.
+ */
 class MainActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityMainBinding
     private lateinit var projectionManager: MediaProjectionManager
     private lateinit var prefs: SharedPreferences
 
+    // What the pending MediaProjection consent will connect to once granted.
+    private var pendingUrl: String = ""
+    private var pendingToken: String = ""
+    private var pendingRemote: Boolean = false
+
+    // Human-readable address of the current/last target, for the status displays.
+    private var lastTarget: String = ""
+
     private val notifPermission =
-        registerForActivityResult(ActivityResultContracts.RequestPermission()) { /* optional */ }
+        registerForActivityResult(ActivityResultContracts.RequestPermission()) { renderPermissions() }
 
     private val captureLauncher =
         registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
@@ -49,42 +79,207 @@ class MainActivity : AppCompatActivity() {
         projectionManager = getSystemService(MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
         prefs = getSharedPreferences("pm", MODE_PRIVATE)
 
-        binding.helperUrl.setText(prefs.getString("helperUrl", ""))
-        binding.token.setText(prefs.getString("token", ""))
+        setupNav()
+        setupHome()
+        setupRemote()
+        setupHistory()
+        setupSettings()
 
-        binding.startButton.setOnClickListener { beginCapture() }
-        binding.stopButton.setOnClickListener {
-            stopService(Intent(this, CaptureService::class.java))
-            CaptureState.set(CaptureState.IDLE, "Stopped")
-        }
-        binding.clearHistory.setOnClickListener { clearHistory() }
+        // Prefill the connection inputs from what was used last time.
+        binding.pageRemote.remoteHelperUrl.setText(prefs.getString("helperUrl", ""))
+        binding.pageRemote.remoteToken.setText(prefs.getString("token", ""))
+        binding.pageRemote.remoteRelayUrl.setText(prefs.getString("relayUrl", ""))
+        binding.pageRemote.remoteRelayToken.setText(prefs.getString("relayToken", ""))
 
         renderHistory()
+        renderCode(CaptureState.code)
+        renderDeviceInfo()
+        renderTheme(currentTheme())
+        renderQuality(currentQuality())
+
+        // Cold start only — not on rotation or a theme-driven recreate.
+        if (savedInstanceState == null) playSplash()
     }
 
     override fun onResume() {
         super.onResume()
         CaptureState.listener = { state, msg -> runOnUiThread { renderStatus(state, msg) } }
+        CaptureState.codeListener = { code -> runOnUiThread { renderCode(code) } }
         renderStatus(CaptureState.state, CaptureState.message)
+        renderCode(CaptureState.code)
+        renderControlStatus()
+        renderPermissions()
+        renderDeviceInfo()
     }
 
     override fun onPause() {
         super.onPause()
         CaptureState.listener = null
+        CaptureState.codeListener = null
     }
 
-    private fun beginCapture() {
-        val url = normalizeHelperUrl(binding.helperUrl.text.toString())
-        val token = binding.token.text.toString().trim()
-        if (url.isEmpty()) {
-            CaptureState.set(CaptureState.ERROR, "Enter the helper address")
+    // ---- Splash ----
+
+    /**
+     * Cold-start splash: the app icon springs in over the themed background, the
+     * name follows, then the whole overlay dissolves to reveal the UI already
+     * built underneath. Drawn into the content root so it needs no second
+     * activity and no splash theme — and it removes itself when done.
+     */
+    private fun playSplash() {
+        val root = findViewById<ViewGroup>(android.R.id.content)
+        val splash = ViewSplashBinding.inflate(layoutInflater, root, false)
+        root.addView(splash.root)
+
+        val logo = splash.splashLogo
+        val name = splash.splashName
+
+        logo.alpha = 0f
+        logo.scaleX = 0.72f
+        logo.scaleY = 0.72f
+        name.alpha = 0f
+        name.translationY = 12f * resources.displayMetrics.density
+
+        logo.animate()
+            .alpha(1f).scaleX(1f).scaleY(1f)
+            .setDuration(460)
+            .setInterpolator(OvershootInterpolator(1.6f))
+            .start()
+        name.animate()
+            .alpha(1f).translationY(0f)
+            .setStartDelay(160)
+            .setDuration(320)
+            .start()
+
+        splash.root.postDelayed({
+            if (isFinishing || isDestroyed) return@postDelayed
+            logo.animate().scaleX(1.08f).scaleY(1.08f).setDuration(280).start()
+            splash.root.animate()
+                .alpha(0f)
+                .setDuration(280)
+                .withEndAction { root.removeView(splash.root) }
+                .start()
+        }, 900L)
+    }
+
+    // ---- Navigation ----
+
+    private fun setupNav() {
+        binding.bottomNav.setOnItemSelectedListener { item ->
+            binding.pageHome.root.visibility = show(item.itemId == R.id.nav_home)
+            binding.pageRemote.root.visibility = show(item.itemId == R.id.nav_remote)
+            binding.pageHistory.root.visibility = show(item.itemId == R.id.nav_history)
+            binding.pageSettings.root.visibility = show(item.itemId == R.id.nav_settings)
+            true
+        }
+        binding.bottomNav.selectedItemId = R.id.nav_home
+    }
+
+    private fun show(visible: Boolean): Int = if (visible) View.VISIBLE else View.GONE
+
+    // ---- Home ----
+
+    private fun setupHome() {
+        binding.pageHome.homeToggle.setOnClickListener { onToggleMonitoring() }
+        binding.pageHome.homePhoneCard.setOnClickListener { renamePhone() }
+    }
+
+    private fun onToggleMonitoring() {
+        val busy = CaptureState.state == CaptureState.STREAMING || CaptureState.state == CaptureState.CONNECTING
+        if (busy) {
+            stopMonitoring()
             return
         }
-        // Show the cleaned-up address so the user sees exactly what we'll connect to.
-        if (url != binding.helperUrl.text.toString()) binding.helperUrl.setText(url)
-        prefs.edit().putString("helperUrl", url).putString("token", token).apply()
-        addToHistory(url, token)
-        renderHistory()
+        when {
+            binding.pageRemote.remoteHelperUrl.text.toString().isNotBlank() -> beginCapture(remote = false)
+            binding.pageRemote.remoteRelayUrl.text.toString().isNotBlank() -> beginCapture(remote = true)
+            else -> {
+                binding.bottomNav.selectedItemId = R.id.nav_remote
+                Toast.makeText(this, R.string.need_address, Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    private fun stopMonitoring() {
+        stopService(Intent(this, CaptureService::class.java))
+        CaptureState.set(CaptureState.IDLE, "Stopped")
+    }
+
+    private fun renamePhone() {
+        val input = EditText(this).apply {
+            setText(deviceName())
+            setSelection(text.length)
+        }
+        AlertDialog.Builder(this)
+            .setTitle(R.string.rename_title)
+            .setView(input)
+            .setPositiveButton(R.string.save) { _, _ ->
+                val name = input.text.toString().trim()
+                if (name.isEmpty() || name == Build.MODEL) prefs.edit().remove("deviceName").apply()
+                else prefs.edit().putString("deviceName", name).apply()
+                renderDeviceInfo()
+            }
+            .setNegativeButton(R.string.cancel, null)
+            .show()
+    }
+
+    // ---- Remote (connect) ----
+
+    private fun setupRemote() {
+        binding.pageRemote.remoteConnectLocal.setOnClickListener { beginCapture(remote = false) }
+        binding.pageRemote.remoteConnectRelay.setOnClickListener { beginCapture(remote = true) }
+        binding.pageRemote.remoteDisconnect.setOnClickListener { stopMonitoring() }
+        binding.pageRemote.remoteControlBtn.setOnClickListener { openAccessibilitySettings() }
+    }
+
+    /**
+     * Kick off a capture. `remote=false` connects to the local desktop helper on the
+     * LAN. `remote=true` connects OUTBOUND to the hosted relay, which assigns a
+     * 9-digit code the user types on the desktop. The chosen URL/token/mode are
+     * stashed so [startCapture] can use them once the consent dialog returns.
+     */
+    private fun beginCapture(remote: Boolean) {
+        val url: String
+        val token: String
+        if (remote) {
+            val base = normalizeRelayBase(binding.pageRemote.remoteRelayUrl.text.toString())
+            if (base.isEmpty()) {
+                CaptureState.set(CaptureState.ERROR, getString(R.string.relay_need_addr))
+                return
+            }
+            if (base != binding.pageRemote.remoteRelayUrl.text.toString()) {
+                binding.pageRemote.remoteRelayUrl.setText(base)
+            }
+            token = binding.pageRemote.remoteRelayToken.text.toString().trim()
+            prefs.edit().putString("relayUrl", base).putString("relayToken", token).apply()
+
+            // Connect to the relay's /agent endpoint; reclaim our previous code if we have one.
+            var connect = "$base/agent"
+            val savedCode = prefs.getString("remoteCode", "").orEmpty()
+            if (savedCode.isNotEmpty()) connect += "?code=" + Uri.encode(savedCode)
+            url = connect
+            lastTarget = base
+        } else {
+            val u = normalizeHelperUrl(binding.pageRemote.remoteHelperUrl.text.toString())
+            if (u.isEmpty()) {
+                CaptureState.set(CaptureState.ERROR, getString(R.string.need_address))
+                binding.bottomNav.selectedItemId = R.id.nav_remote
+                return
+            }
+            if (u != binding.pageRemote.remoteHelperUrl.text.toString()) {
+                binding.pageRemote.remoteHelperUrl.setText(u)
+            }
+            token = binding.pageRemote.remoteToken.text.toString().trim()
+            prefs.edit().putString("helperUrl", u).putString("token", token).apply()
+            addToHistory(u, token)
+            renderHistory()
+            url = u
+            lastTarget = u
+        }
+
+        pendingUrl = url
+        pendingToken = token
+        pendingRemote = remote
         ensureNotificationPermission()
         requestBatteryExemption()
         CaptureState.set(CaptureState.CONNECTING, "Requesting permission…")
@@ -92,10 +287,38 @@ class MainActivity : AppCompatActivity() {
     }
 
     /**
-     * Turns whatever the user typed into a connectable helper address.
-     * Accepts a bare host ("app.onrender.com"), a dashboard link
-     * ("https://app.onrender.com") or a full "wss://host/app", and always returns
-     * "ws(s)://host[:port]/app". This is what makes pasting the dashboard link work.
+     * Turns whatever the user typed for the relay into a base "ws(s)://host[:port]"
+     * (no path — we append /agent when connecting). Bare hosts default to wss://.
+     */
+    private fun normalizeRelayBase(raw: String): String {
+        var s = raw.trim()
+        if (s.isEmpty()) return ""
+
+        val lower = s.lowercase()
+        s = when {
+            lower.startsWith("wss://") -> "wss://" + s.substring(6)
+            lower.startsWith("ws://") -> "ws://" + s.substring(5)
+            lower.startsWith("https://") -> "wss://" + s.substring(8)
+            lower.startsWith("http://") -> "ws://" + s.substring(7)
+            else -> (if (looksLocal(s)) "ws://" else "wss://") + s
+        }
+
+        val schemeEnd = s.indexOf("://") + 3
+        val scheme = s.substring(0, schemeEnd)
+        val rest = s.substring(schemeEnd)
+
+        val slash = rest.indexOf('/')
+        var authority = if (slash >= 0) rest.substring(0, slash) else rest
+        val cut = authority.indexOfFirst { it == ' ' || it == '=' || it == '?' }
+        if (cut >= 0) authority = authority.substring(0, cut)
+
+        return if (authority.isEmpty()) "" else scheme + authority
+    }
+
+    /**
+     * Turns whatever the user typed into a connectable helper address. Accepts a
+     * bare host, a dashboard link, or a full "wss://host/app", and always returns
+     * "ws(s)://host[:port]/app".
      */
     private fun normalizeHelperUrl(raw: String): String {
         var s = raw.trim()
@@ -118,8 +341,6 @@ class MainActivity : AppCompatActivity() {
         var authority = if (slash >= 0) rest.substring(0, slash) else rest
         var path = if (slash >= 0) rest.substring(slash) else ""
 
-        // A host[:port] can't contain a space or '=', so anything from there on is a
-        // stray token the user pasted onto the URL — drop it (the token has its own field).
         val cut = authority.indexOfFirst { it == ' ' || it == '=' || it == '?' }
         if (cut >= 0) authority = authority.substring(0, cut)
 
@@ -136,8 +357,9 @@ class MainActivity : AppCompatActivity() {
             Regex("^172\\.(1[6-9]|2\\d|3[0-1])\\.").containsMatchIn(host)
     }
 
+    // ---- Status rendering ----
+
     private fun renderStatus(state: Int, msg: String) {
-        binding.status.text = msg
         val colorRes = when (state) {
             CaptureState.STREAMING -> R.color.pm_green
             CaptureState.CONNECTING -> R.color.pm_yellow
@@ -145,12 +367,298 @@ class MainActivity : AppCompatActivity() {
             else -> R.color.pm_muted
         }
         val color = ContextCompat.getColor(this, colorRes)
-        binding.status.setTextColor(color)
-        binding.statusDot.backgroundTintList = ColorStateList.valueOf(color)
+        val monitoring = state == CaptureState.STREAMING
+        val connecting = state == CaptureState.CONNECTING
+        val busy = monitoring || connecting
 
-        val busy = state == CaptureState.STREAMING || state == CaptureState.CONNECTING
-        binding.startButton.isEnabled = !busy
-        binding.stopButton.isEnabled = busy
+        // Header
+        binding.headerStatusText.setText(
+            when {
+                monitoring -> R.string.hdr_connected
+                connecting -> R.string.hdr_connecting
+                else -> R.string.hdr_offline
+            },
+        )
+        binding.headerStatusText.setTextColor(color)
+        tintDot(binding.headerDot, color)
+
+        // Home status card
+        val home = binding.pageHome
+        home.homeStatusHeadline.setText(
+            when {
+                monitoring -> R.string.status_monitoring
+                connecting -> R.string.status_connecting
+                else -> R.string.status_offline
+            },
+        )
+        home.homeStatusHeadline.setTextColor(
+            ContextCompat.getColor(
+                this,
+                when {
+                    monitoring -> R.color.pm_green_bright
+                    connecting -> R.color.pm_yellow
+                    state == CaptureState.ERROR -> R.color.pm_red
+                    else -> R.color.pm_text
+                },
+            ),
+        )
+        home.homeStatusSub.setText(
+            when {
+                monitoring -> R.string.home_sub_monitoring
+                connecting -> R.string.home_sub_connecting
+                else -> R.string.home_sub_offline
+            },
+        )
+        tintDot(home.homeStatusDot, color)
+        home.homeConnChip.visibility = if (busy && lastTarget.isNotEmpty()) View.VISIBLE else View.GONE
+        home.homeConnUrl.text = lastTarget
+
+        // Home monitor toggle
+        home.homeToggle.setText(if (busy) R.string.stop_monitoring else R.string.start_monitoring)
+        home.homeToggle.backgroundTintList = ColorStateList.valueOf(
+            ContextCompat.getColor(this, if (busy) R.color.pm_red else R.color.pm_green),
+        )
+        home.homeToggle.setTextColor(
+            ContextCompat.getColor(this, if (busy) R.color.pm_white else R.color.pm_black),
+        )
+
+        // Remote connection card
+        val remote = binding.pageRemote
+        remote.remoteStatusText.setText(
+            when {
+                monitoring -> R.string.connected
+                connecting -> R.string.status_connecting
+                else -> R.string.not_connected
+            },
+        )
+        remote.remoteStatusText.setTextColor(color)
+        tintDot(remote.remoteStatusDot, color)
+        remote.remoteStatusUrl.text = if (busy && lastTarget.isNotEmpty()) lastTarget else getString(R.string.dash)
+        remote.remoteDisconnect.visibility = if (busy) View.VISIBLE else View.GONE
+        remote.remoteConnectLocal.isEnabled = !busy
+        remote.remoteConnectRelay.isEnabled = !busy
+
+        // Settings screen-capture chip reflects whether capture is active.
+        renderChip(binding.pageSettings.setScreenChip, monitoring || connecting)
+    }
+
+    /** Show the relay-assigned code as "916 429 577"; muted placeholder until assigned. */
+    private fun renderCode(code: String) {
+        if (code.isEmpty()) {
+            binding.pageRemote.remoteCodeText.text = getString(R.string.remote_code_placeholder)
+            binding.pageRemote.remoteCodeText.setTextColor(ContextCompat.getColor(this, R.color.pm_muted))
+        } else {
+            binding.pageRemote.remoteCodeText.text = formatCode(code)
+            binding.pageRemote.remoteCodeText.setTextColor(ContextCompat.getColor(this, R.color.pm_green))
+        }
+    }
+
+    private fun formatCode(code: String): String =
+        code.filter { it.isDigit() }.chunked(3).joinToString(" ")
+
+    private fun tintDot(dot: View, color: Int) {
+        dot.backgroundTintList = ColorStateList.valueOf(color)
+    }
+
+    // ---- Remote control (accessibility) ----
+
+    private fun renderControlStatus() {
+        val enabled = isControlEnabled()
+        renderChip(binding.pageRemote.remoteControlChip, enabled)
+        renderChip(binding.pageSettings.setRemoteChip, enabled)
+        binding.pageRemote.remoteControlBtn.setText(
+            if (enabled) R.string.manage_android else R.string.turn_on_control,
+        )
+    }
+
+    /** True if our ControlService is in the system's enabled-accessibility list. */
+    private fun isControlEnabled(): Boolean {
+        val expected = ComponentName(this, ControlService::class.java)
+
+        runCatching {
+            val am = getSystemService(Context.ACCESSIBILITY_SERVICE) as AccessibilityManager
+            for (info in am.getEnabledAccessibilityServiceList(AccessibilityServiceInfo.FEEDBACK_ALL_MASK)) {
+                val si = info.resolveInfo?.serviceInfo ?: continue
+                if (si.packageName == expected.packageName && si.name == expected.className) return true
+            }
+        }
+
+        val enabled = Settings.Secure.getString(
+            contentResolver,
+            Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES,
+        ) ?: return false
+        val flat = expected.flattenToString()
+        val short = expected.flattenToShortString()
+        val splitter = TextUtils.SimpleStringSplitter(':')
+        splitter.setString(enabled)
+        for (entry in splitter) {
+            if (entry.equals(flat, ignoreCase = true) ||
+                entry.equals(short, ignoreCase = true) ||
+                ComponentName.unflattenFromString(entry) == expected
+            ) {
+                return true
+            }
+        }
+        return false
+    }
+
+    private fun openAccessibilitySettings() {
+        runCatching { startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)) }
+    }
+
+    // ---- Settings ----
+
+    private fun setupSettings() {
+        val s = binding.pageSettings
+        s.themeSystem.setOnClickListener { applyThemeChoice(App.THEME_SYSTEM) }
+        s.themeLight.setOnClickListener { applyThemeChoice(App.THEME_LIGHT) }
+        s.themeDark.setOnClickListener { applyThemeChoice(App.THEME_DARK) }
+
+        s.qualLow.setOnClickListener { setQuality("low") }
+        s.qualMed.setOnClickListener { setQuality("medium") }
+        s.qualHigh.setOnClickListener { setQuality("high") }
+
+        s.setRemoteRow.setOnClickListener { openAccessibilitySettings() }
+        s.setBatteryRow.setOnClickListener { requestBatteryExemption() }
+        s.setRotateRow.setOnClickListener { requestWriteSettings() }
+        s.setNotifRow.setOnClickListener { onNotifRow() }
+        s.setNameRow.setOnClickListener { renamePhone() }
+        s.setHowRow.setOnClickListener { binding.bottomNav.selectedItemId = R.id.nav_home }
+    }
+
+    private fun currentTheme(): String = prefs.getString("themeMode", App.THEME_SYSTEM) ?: App.THEME_SYSTEM
+
+    private fun applyThemeChoice(mode: String) {
+        prefs.edit().putString("themeMode", mode).apply()
+        renderTheme(mode)
+        // Recreates the activity if the effective night mode changed.
+        AppCompatDelegate.setDefaultNightMode(App.nightModeFor(mode))
+    }
+
+    private fun renderTheme(mode: String) {
+        val s = binding.pageSettings
+        selectSeg(
+            when (mode) {
+                App.THEME_LIGHT -> s.themeLight
+                App.THEME_DARK -> s.themeDark
+                else -> s.themeSystem
+            },
+            s.themeSystem, s.themeLight, s.themeDark,
+        )
+    }
+
+    private fun currentQuality(): String = prefs.getString("quality", "medium") ?: "medium"
+
+    private fun setQuality(quality: String) {
+        prefs.edit().putString("quality", quality).apply()
+        renderQuality(quality)
+    }
+
+    private fun renderQuality(quality: String) {
+        val s = binding.pageSettings
+        selectSeg(
+            when (quality) {
+                "low" -> s.qualLow
+                "high" -> s.qualHigh
+                else -> s.qualMed
+            },
+            s.qualLow, s.qualMed, s.qualHigh,
+        )
+    }
+
+    /** Highlight one segment of a Low/Med/High-style control; mute the rest. */
+    private fun selectSeg(selected: TextView, vararg all: TextView) {
+        for (t in all) {
+            val on = t === selected
+            t.setBackgroundResource(if (on) R.drawable.bg_seg_selected else 0)
+            t.setTextColor(ContextCompat.getColor(this, if (on) R.color.pm_black else R.color.pm_muted))
+        }
+    }
+
+    private fun renderPermissions() {
+        renderChip(binding.pageSettings.setRemoteChip, isControlEnabled())
+        renderChip(binding.pageSettings.setBatteryChip, isIgnoringBattery())
+        renderChip(binding.pageSettings.setRotateChip, canWriteSettings())
+        renderChip(binding.pageSettings.setNotifChip, notificationsEnabled())
+        val active = CaptureState.state == CaptureState.STREAMING || CaptureState.state == CaptureState.CONNECTING
+        renderChip(binding.pageSettings.setScreenChip, active)
+    }
+
+    /** Green "On" chip when [on], muted "Off" chip otherwise. */
+    private fun renderChip(chip: TextView, on: Boolean) {
+        chip.setText(if (on) R.string.on else R.string.off)
+        chip.setBackgroundResource(if (on) R.drawable.chip_green else R.drawable.chip_muted)
+        chip.setTextColor(ContextCompat.getColor(this, if (on) R.color.pm_green else R.color.pm_muted))
+    }
+
+    private fun isIgnoringBattery(): Boolean {
+        val pm = getSystemService(Context.POWER_SERVICE) as PowerManager
+        return pm.isIgnoringBatteryOptimizations(packageName)
+    }
+
+    /** WRITE_SETTINGS — only used for the desktop's "rotate" control. */
+    private fun canWriteSettings(): Boolean = runCatching { Settings.System.canWrite(this) }.getOrDefault(false)
+
+    private fun requestWriteSettings() {
+        runCatching {
+            startActivity(
+                Intent(Settings.ACTION_MANAGE_WRITE_SETTINGS, Uri.parse("package:$packageName")),
+            )
+        }
+    }
+
+    private fun notificationsEnabled(): Boolean =
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            ContextCompat.checkSelfPermission(this, android.Manifest.permission.POST_NOTIFICATIONS) ==
+                PackageManager.PERMISSION_GRANTED
+        } else {
+            true
+        }
+
+    private fun onNotifRow() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && !notificationsEnabled()) {
+            notifPermission.launch(android.Manifest.permission.POST_NOTIFICATIONS)
+        } else {
+            runCatching {
+                startActivity(
+                    Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS)
+                        .putExtra(Settings.EXTRA_APP_PACKAGE, packageName),
+                )
+            }
+        }
+    }
+
+    // ---- This phone info ----
+
+    private fun deviceName(): String = prefs.getString("deviceName", null)?.takeIf { it.isNotBlank() } ?: Build.MODEL
+
+    private fun renderDeviceInfo() {
+        binding.pageHome.homePhoneName.text = deviceName()
+        binding.pageSettings.setNameValue.text = deviceName()
+        binding.pageHome.homeIp.text = localIp() ?: getString(R.string.dash)
+        binding.pageHome.homeBattery.text = batteryText()
+    }
+
+    private fun localIp(): String? = runCatching {
+        for (intf in NetworkInterface.getNetworkInterfaces()) {
+            for (addr in intf.inetAddresses) {
+                if (!addr.isLoopbackAddress && addr is Inet4Address && addr.isSiteLocalAddress) {
+                    return@runCatching addr.hostAddress
+                }
+            }
+        }
+        null
+    }.getOrNull()
+
+    private fun batteryText(): String {
+        val bm = registerReceiver(null, IntentFilter(Intent.ACTION_BATTERY_CHANGED)) ?: return getString(R.string.dash)
+        val level = bm.getIntExtra(BatteryManager.EXTRA_LEVEL, -1)
+        val scale = bm.getIntExtra(BatteryManager.EXTRA_SCALE, -1)
+        val status = bm.getIntExtra(BatteryManager.EXTRA_STATUS, -1)
+        if (level < 0 || scale <= 0) return getString(R.string.dash)
+        val pct = level * 100 / scale
+        val charging = status == BatteryManager.BATTERY_STATUS_CHARGING || status == BatteryManager.BATTERY_STATUS_FULL
+        return if (charging) "$pct%  •  ${getString(R.string.charging)}" else "$pct%"
     }
 
     // ---- Recent connections ----
@@ -182,6 +690,10 @@ class MainActivity : AppCompatActivity() {
         saveHistory(loadHistory().filterNot { it.first == url })
     }
 
+    private fun setupHistory() {
+        binding.pageHistory.historyClear.setOnClickListener { clearHistory() }
+    }
+
     private fun clearHistory() {
         prefs.edit().remove("history").apply()
         renderHistory()
@@ -189,26 +701,29 @@ class MainActivity : AppCompatActivity() {
 
     private fun renderHistory() {
         val list = loadHistory()
-        binding.historyList.removeAllViews()
-        val visibility = if (list.isEmpty()) View.GONE else View.VISIBLE
-        binding.historyHeader.visibility = visibility
-        binding.historyList.visibility = visibility
+        val container = binding.pageHistory.historyListContainer
+        container.removeAllViews()
+        binding.pageHistory.historyEmpty.visibility = if (list.isEmpty()) View.VISIBLE else View.GONE
+        binding.pageHistory.historyHint.visibility = if (list.isEmpty()) View.GONE else View.VISIBLE
+        binding.pageHistory.historyClear.isEnabled = list.isNotEmpty()
         for ((url, token) in list) {
-            val btn = layoutInflater.inflate(R.layout.history_item, binding.historyList, false) as MaterialButton
+            val btn = layoutInflater.inflate(R.layout.history_item, container, false) as MaterialButton
             btn.text = url
             btn.setOnClickListener {
-                binding.helperUrl.setText(url)
-                binding.token.setText(token)
-                beginCapture()
+                binding.pageRemote.remoteHelperUrl.setText(url)
+                binding.pageRemote.remoteToken.setText(token)
+                beginCapture(remote = false)
             }
             btn.setOnLongClickListener {
                 removeFromHistory(url)
                 renderHistory()
                 true
             }
-            binding.historyList.addView(btn)
+            container.addView(btn)
         }
     }
+
+    // ---- Permissions the capture needs ----
 
     private fun ensureNotificationPermission() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
@@ -238,13 +753,18 @@ class MainActivity : AppCompatActivity() {
         val intent = Intent(this, CaptureService::class.java).apply {
             putExtra(CaptureService.EXTRA_RESULT_CODE, resultCode)
             putExtra(CaptureService.EXTRA_RESULT_DATA, data)
-            putExtra(CaptureService.EXTRA_HELPER_URL, binding.helperUrl.text.toString())
-            putExtra(CaptureService.EXTRA_TOKEN, binding.token.text.toString())
+            putExtra(CaptureService.EXTRA_HELPER_URL, pendingUrl)
+            putExtra(CaptureService.EXTRA_TOKEN, pendingToken)
+            putExtra(CaptureService.EXTRA_REMOTE, pendingRemote)
+            putExtra(CaptureService.EXTRA_QUALITY, currentQuality())
             putExtra(CaptureService.EXTRA_WIDTH, metrics.widthPixels)
             putExtra(CaptureService.EXTRA_HEIGHT, metrics.heightPixels)
             putExtra(CaptureService.EXTRA_DPI, metrics.densityDpi)
         }
         ContextCompat.startForegroundService(this, intent)
-        CaptureState.set(CaptureState.CONNECTING, "Connecting to helper…")
+        CaptureState.set(
+            CaptureState.CONNECTING,
+            if (pendingRemote) "Connecting to relay…" else "Connecting to helper…",
+        )
     }
 }

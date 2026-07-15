@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Phone Monitor — Mobile Redesign</title>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@100..900&amp;display=swap" rel="stylesheet"/>
+<style>
+  :root { --bg:#08080a; --panel:#141417; --border:#26262B; --text:#F2F3F5; --muted:#9A9AA4; --green:#2FA44A; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:radial-gradient(circle at 50% -10%, #12160f 0%, #08080a 55%); color:var(--text);
+         font-family:'Outfit',system-ui,sans-serif; min-height:100vh; }
+  header { text-align:center; padding:48px 20px 8px; }
+  header h1 { margin:0; font-size:30px; font-weight:700; letter-spacing:-0.02em; }
+  header h1 span { color:var(--green); }
+  header p { color:var(--muted); font-size:15px; margin:10px auto 0; max-width:620px; line-height:1.6; }
+  .grid { display:flex; flex-wrap:wrap; gap:44px 36px; justify-content:center; padding:40px 24px 80px; }
+  .screen { display:flex; flex-direction:column; align-items:center; gap:16px; }
+  .label { display:flex; align-items:center; gap:8px; font-size:14px; color:var(--muted); font-weight:600; }
+  .label b { color:var(--text); font-size:16px; font-weight:700; }
+  .phone { width:390px; height:820px; border-radius:44px; padding:12px; background:#000;
+           border:1px solid var(--border); box-shadow:0 40px 90px rgba(0,0,0,.6), 0 0 0 1px rgba(255,255,255,.02); position:relative; }
+  .phone::before { content:""; position:absolute; top:20px; left:50%; transform:translateX(-50%);
+                   width:120px; height:26px; background:#000; border-radius:0 0 16px 16px; z-index:5; }
+  iframe { width:100%; height:100%; border:none; border-radius:33px; background:#0B0B0D; }
+  @media (max-width:900px){ .phone{ width:340px; height:715px; } }
+</style>
+</head>
+<body>
+  <header>
+    <h1>Phone Monitor <span>·</span> Mobile Redesign</h1>
+    <p>The on-device Agent app, rebuilt to match the new direction — plain words, real features only, and the same brand palette as the desktop app. Four screens: Home, Remote, History, Settings.</p>
+  </header>
+  <div class="grid">
+    <div class="screen">
+      <div class="label"><b>Home</b> · status &amp; quick setup</div>
+      <div class="phone"><iframe src="home.html" title="Home"></iframe></div>
+    </div>
+    <div class="screen">
+      <div class="label"><b>Remote</b> · connect &amp; control</div>
+      <div class="phone"><iframe src="remote.html" title="Remote"></iframe></div>
+    </div>
+    <div class="screen">
+      <div class="label"><b>History</b> · past desktops</div>
+      <div class="phone"><iframe src="history.html" title="History"></iframe></div>
+    </div>
+    <div class="screen">
+      <div class="label"><b>Settings</b> · permissions &amp; more</div>
+      <div class="phone"><iframe src="settings.html" title="Settings"></iframe></div>
+    </div>
+  </div>
+</body>
+</html>

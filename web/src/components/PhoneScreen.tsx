@@ -5,22 +5,79 @@ import { videoBus, type VideoFrameMsg } from "../lib/video-bus";
 /**
  * Renders a phone's screen. If a live H.264 stream is arriving for this device
  * it is decoded via WebCodecs onto a canvas; otherwise a synthetic placeholder
- * screen is shown so the layout matches the real product (and demo devices work).
+ * is shown so the layout matches the real product (and demo devices work).
  */
-export function PhoneScreen({ device }: { device: Device }) {
+interface PhoneScreenProps {
+  device: Device;
+  /** Fills its container instead of using the phone aspect ratio. */
+  fill?: boolean;
+  showFps?: boolean;
+  /** Reports the intrinsic (decoded) video dimensions when they change. */
+  onVideoSize?: (w: number, h: number) => void;
+  /** Hands out the canvas so callers can screenshot / record exactly what's drawn. */
+  onCanvas?: (canvas: HTMLCanvasElement | null) => void;
+  children?: React.ReactNode;
+}
+
+export function PhoneScreen({
+  device,
+  fill,
+  showFps,
+  onVideoSize,
+  onCanvas,
+  children,
+}: PhoneScreenProps) {
   const [hasVideo, setHasVideo] = useState(false);
+  const [ratio, setRatio] = useState<string | undefined>(undefined);
   const onFirstFrame = useCallback(() => setHasVideo(true), []);
+
+  // Shape the box to the real picture. The phone re-encodes at the new size when
+  // it rotates, so this follows it into landscape instead of letterboxing.
+  const handleSize = useCallback(
+    (w: number, h: number) => {
+      if (w > 0 && h > 0) setRatio(`${w} / ${h}`);
+      onVideoSize?.(w, h);
+    },
+    [onVideoSize],
+  );
+
   return (
-    <div className="screen">
-      <LiveScreen deviceId={device.id} onFirstFrame={onFirstFrame} />
+    <div className={`screen ${fill ? "fill" : ""}`} style={fill || !ratio ? undefined : { aspectRatio: ratio }}>
+      <LiveScreen
+        deviceId={device.id}
+        onFirstFrame={onFirstFrame}
+        onVideoSize={handleSize}
+        onCanvas={onCanvas}
+      />
       {!hasVideo && <MockScreen device={device} />}
-      <span className="fps-badge">{device.fps ?? 0} fps</span>
+      {showFps && <span className="fps-badge">{device.fps ?? 0} fps</span>}
+      {children}
     </div>
   );
 }
 
-function LiveScreen({ deviceId, onFirstFrame }: { deviceId: string; onFirstFrame: () => void }) {
+function LiveScreen({
+  deviceId,
+  onFirstFrame,
+  onVideoSize,
+  onCanvas,
+}: {
+  deviceId: string;
+  onFirstFrame: () => void;
+  onVideoSize?: (w: number, h: number) => void;
+  onCanvas?: (canvas: HTMLCanvasElement | null) => void;
+}) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  // Keep the latest callbacks without re-subscribing the decoder.
+  const onVideoSizeRef = useRef(onVideoSize);
+  onVideoSizeRef.current = onVideoSize;
+  const onCanvasRef = useRef(onCanvas);
+  onCanvasRef.current = onCanvas;
+
+  useEffect(() => {
+    onCanvasRef.current?.(canvasRef.current);
+    return () => onCanvasRef.current?.(null);
+  }, [deviceId]);
 
   useEffect(() => {
     const w = window as unknown as {
@@ -37,6 +94,8 @@ function LiveScreen({ deviceId, onFirstFrame }: { deviceId: string; onFirstFrame
     let haveKey = false;
     let ts = 0;
     let firstShown = false;
+    let lastW = 0;
+    let lastH = 0;
 
     const makeDecoder = (codec: string): VideoDecoderLike => {
       const d = new w.VideoDecoder!({
@@ -45,6 +104,11 @@ function LiveScreen({ deviceId, onFirstFrame }: { deviceId: string; onFirstFrame
             if (canvas.width !== frame.displayWidth) canvas.width = frame.displayWidth;
             if (canvas.height !== frame.displayHeight) canvas.height = frame.displayHeight;
             ctx.drawImage(frame as unknown as CanvasImageSource, 0, 0, canvas.width, canvas.height);
+            if (lastW !== frame.displayWidth || lastH !== frame.displayHeight) {
+              lastW = frame.displayWidth;
+              lastH = frame.displayHeight;
+              onVideoSizeRef.current?.(lastW, lastH);
+            }
             if (!firstShown) {
               firstShown = true;
               onFirstFrame();
@@ -119,23 +183,23 @@ function MockScreen({ device }: { device: Device }) {
 
   return (
     <div
-      className="mock-screen"
+      className="mock"
       style={{ background: `linear-gradient(160deg, hsl(${hue} 45% 24%), hsl(${(hue + 40) % 360} 55% 12%))` }}
     >
-      <div className="mock-statusbar">
+      <div className="mock-bar">
         <span>
           {hh}:{mm}
         </span>
-        <span className="mock-icons">▮▮▮</span>
+        <span>▮▮▮</span>
       </div>
-      <div className="mock-clock">
+      <div className="mock-mid">
         <div className="mock-time">
           {hh}:{mm}
         </div>
         <div className="mock-date">{date}</div>
       </div>
-      <div className="mock-badge">
-        {device.tier === "view" ? "Tier 2 · view only" : "Tier 1 · control"} · awaiting stream
+      <div className="mock-note">
+        {device.id.startsWith("mock-") ? "Demo phone" : "Waiting for the screen…"}
       </div>
     </div>
   );

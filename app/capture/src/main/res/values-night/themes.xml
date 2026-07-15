@@ -1,0 +1,12 @@
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <!-- Dark theme: light icons on the dark status bar (override the light default). -->
+    <style name="Theme.PhoneMonitor" parent="Theme.Material3.DayNight.NoActionBar">
+        <item name="colorPrimary">@color/pm_green</item>
+        <item name="colorOnPrimary">@color/pm_black</item>
+        <item name="colorSecondary">@color/pm_green</item>
+        <item name="android:windowBackground">@color/pm_bg</item>
+        <item name="android:statusBarColor" tools:targetApi="l">@color/pm_bg</item>
+        <item name="android:navigationBarColor">@color/pm_bg</item>
+        <item name="android:windowLightStatusBar" tools:targetApi="m">false</item>
+    </style>
+</resources>

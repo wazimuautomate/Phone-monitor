@@ -1,6 +1,6 @@
 import type { WebSocket, WebSocketServer } from "ws";
 import type { SourceManager } from "./sources/source-manager.js";
-import type { SourceEvent, VideoPacket } from "./sources/types.js";
+import type { ControlCmd, SourceEvent, VideoPacket } from "./sources/types.js";
 
 export interface ServerInfo {
   appUrls: string[];
@@ -20,7 +20,9 @@ export function attachHub(wss: WebSocketServer, sources: SourceManager, info: Se
     const off = sources.onEvent((event) => forward(ws, event));
     ws.on("close", off);
     ws.on("message", (raw) => {
-      let msg: { type?: string; deviceId?: string } | undefined;
+      let msg:
+        | { type?: string; deviceId?: string; cmd?: ControlCmd; relayUrl?: string; code?: string; token?: string }
+        | undefined;
       try {
         msg = JSON.parse(raw.toString());
       } catch {
@@ -39,7 +41,19 @@ export function attachHub(wss: WebSocketServer, sources: SourceManager, info: Se
         case "mock-remove":
           sources.removeMockDevice();
           break;
-        // Phase 8: remote-control commands (tap/swipe/keys) will be handled here.
+        case "control":
+          // Remote control (tap/swipe/keys/text) — route to the owning source.
+          if (typeof msg.deviceId === "string" && msg.cmd) sources.sendControl(msg.deviceId, msg.cmd);
+          break;
+        case "relay-connect":
+          // Start watching a remote phone (out-of-home) by pairing code via the relay.
+          if (typeof msg.relayUrl === "string" && typeof msg.code === "string") {
+            void sources.addRelay(msg.relayUrl, msg.code, typeof msg.token === "string" ? msg.token : undefined);
+          }
+          break;
+        case "relay-disconnect":
+          if (typeof msg.code === "string") sources.removeRelay(msg.code);
+          break;
       }
     });
   });

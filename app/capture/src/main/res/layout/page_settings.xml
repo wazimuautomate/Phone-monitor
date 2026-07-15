@@ -1,0 +1,391 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:fillViewport="true"
+    android:scrollbars="none">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="20dp">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:paddingBottom="6dp"
+            android:text="@string/settings"
+            android:textColor="@color/pm_text"
+            android:textSize="24sp"
+            android:textStyle="bold" />
+
+        <!-- Appearance / theme -->
+        <TextView
+            style="@style/Pm.SectionHeader"
+            android:text="@string/sec_appearance" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="@drawable/bg_card20"
+            android:orientation="vertical"
+            android:padding="16dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:background="@drawable/bg_seg"
+                android:orientation="horizontal"
+                android:padding="4dp">
+
+                <TextView
+                    android:id="@+id/themeSystem"
+                    style="@style/Pm.SegItem"
+                    android:background="@drawable/bg_seg_selected"
+                    android:text="@string/theme_system"
+                    android:textColor="@color/pm_black" />
+
+                <TextView
+                    android:id="@+id/themeLight"
+                    style="@style/Pm.SegItem"
+                    android:text="@string/theme_light"
+                    android:textColor="@color/pm_muted" />
+
+                <TextView
+                    android:id="@+id/themeDark"
+                    style="@style/Pm.SegItem"
+                    android:text="@string/theme_dark"
+                    android:textColor="@color/pm_muted" />
+            </LinearLayout>
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:paddingTop="12dp"
+                android:text="@string/theme_help"
+                android:textColor="@color/pm_muted"
+                android:textSize="13sp" />
+        </LinearLayout>
+
+        <!-- Permissions -->
+        <TextView
+            style="@style/Pm.SectionHeader"
+            android:text="@string/sec_permissions" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="@drawable/bg_card20"
+            android:orientation="vertical">
+
+            <!-- Screen capture -->
+            <LinearLayout style="@style/Pm.Row">
+
+                <ImageView
+                    style="@style/Pm.RowIcon"
+                    android:src="@drawable/ic_desktop"
+                    app:tint="@color/pm_green" />
+
+                <LinearLayout style="@style/Pm.RowText">
+
+                    <TextView style="@style/Pm.RowTitle" android:text="@string/perm_screen" />
+
+                    <TextView style="@style/Pm.RowSub" android:text="@string/perm_screen_sub" />
+                </LinearLayout>
+
+                <TextView
+                    android:id="@+id/setScreenChip"
+                    style="@style/Pm.Chip"
+                    android:text="@string/off" />
+            </LinearLayout>
+
+            <View style="@style/Pm.Divider" />
+
+            <!-- Remote control -->
+            <LinearLayout
+                android:id="@+id/setRemoteRow"
+                style="@style/Pm.Row">
+
+                <ImageView
+                    style="@style/Pm.RowIcon"
+                    android:src="@drawable/ic_touch"
+                    app:tint="@color/pm_green" />
+
+                <LinearLayout style="@style/Pm.RowText">
+
+                    <TextView style="@style/Pm.RowTitle" android:text="@string/perm_control" />
+
+                    <TextView style="@style/Pm.RowSub" android:text="@string/perm_control_sub" />
+                </LinearLayout>
+
+                <TextView
+                    android:id="@+id/setRemoteChip"
+                    style="@style/Pm.Chip"
+                    android:text="@string/off" />
+            </LinearLayout>
+
+            <View style="@style/Pm.Divider" />
+
+            <!-- Keep running -->
+            <LinearLayout
+                android:id="@+id/setBatteryRow"
+                style="@style/Pm.Row">
+
+                <ImageView
+                    style="@style/Pm.RowIcon"
+                    android:src="@drawable/ic_battery"
+                    app:tint="@color/pm_green" />
+
+                <LinearLayout style="@style/Pm.RowText">
+
+                    <TextView style="@style/Pm.RowTitle" android:text="@string/perm_keep" />
+
+                    <TextView style="@style/Pm.RowSub" android:text="@string/perm_keep_sub" />
+                </LinearLayout>
+
+                <TextView
+                    android:id="@+id/setBatteryChip"
+                    style="@style/Pm.Chip"
+                    android:text="@string/off" />
+            </LinearLayout>
+
+            <View style="@style/Pm.Divider" />
+
+            <!-- Screen rotate (WRITE_SETTINGS) -->
+            <LinearLayout
+                android:id="@+id/setRotateRow"
+                style="@style/Pm.Row">
+
+                <ImageView
+                    style="@style/Pm.RowIcon"
+                    android:src="@drawable/ic_rotate"
+                    app:tint="@color/pm_green" />
+
+                <LinearLayout style="@style/Pm.RowText">
+
+                    <TextView style="@style/Pm.RowTitle" android:text="@string/perm_rotate" />
+
+                    <TextView style="@style/Pm.RowSub" android:text="@string/perm_rotate_sub" />
+                </LinearLayout>
+
+                <TextView
+                    android:id="@+id/setRotateChip"
+                    style="@style/Pm.Chip"
+                    android:text="@string/off" />
+            </LinearLayout>
+
+            <View style="@style/Pm.Divider" />
+
+            <!-- Notifications -->
+            <LinearLayout
+                android:id="@+id/setNotifRow"
+                style="@style/Pm.Row">
+
+                <ImageView
+                    style="@style/Pm.RowIcon"
+                    android:src="@drawable/ic_bell"
+                    app:tint="@color/pm_muted" />
+
+                <LinearLayout style="@style/Pm.RowText">
+
+                    <TextView style="@style/Pm.RowTitle" android:text="@string/perm_notif" />
+
+                    <TextView style="@style/Pm.RowSub" android:text="@string/perm_notif_sub" />
+                </LinearLayout>
+
+                <TextView
+                    android:id="@+id/setNotifChip"
+                    style="@style/Pm.Chip"
+                    android:text="@string/off" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <!-- This phone -->
+        <TextView
+            style="@style/Pm.SectionHeader"
+            android:text="@string/sec_this_phone" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="@drawable/bg_card20"
+            android:orientation="vertical">
+
+            <LinearLayout
+                android:id="@+id/setNameRow"
+                style="@style/Pm.Row">
+
+                <ImageView
+                    style="@style/Pm.RowIcon"
+                    android:src="@drawable/ic_phone"
+                    app:tint="@color/pm_muted" />
+
+                <TextView
+                    style="@style/Pm.RowTitle"
+                    android:layout_width="0dp"
+                    android:layout_weight="1"
+                    android:text="@string/phone_name" />
+
+                <TextView
+                    android:id="@+id/setNameValue"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginEnd="6dp"
+                    android:text="@string/app_name"
+                    android:textColor="@color/pm_muted"
+                    android:textSize="14sp" />
+
+                <ImageView
+                    style="@style/Pm.RowChevron"
+                    android:src="@drawable/ic_chevron"
+                    app:tint="@color/pm_muted" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <!-- Monitor quality -->
+        <TextView
+            style="@style/Pm.SectionHeader"
+            android:text="@string/sec_quality" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="@drawable/bg_card20"
+            android:orientation="vertical"
+            android:padding="16dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:background="@drawable/bg_seg"
+                android:orientation="horizontal"
+                android:padding="4dp">
+
+                <TextView
+                    android:id="@+id/qualLow"
+                    style="@style/Pm.SegItem"
+                    android:text="@string/quality_low"
+                    android:textColor="@color/pm_muted" />
+
+                <TextView
+                    android:id="@+id/qualMed"
+                    style="@style/Pm.SegItem"
+                    android:background="@drawable/bg_seg_selected"
+                    android:text="@string/quality_medium"
+                    android:textColor="@color/pm_black" />
+
+                <TextView
+                    android:id="@+id/qualHigh"
+                    style="@style/Pm.SegItem"
+                    android:text="@string/quality_high"
+                    android:textColor="@color/pm_muted" />
+            </LinearLayout>
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:paddingTop="12dp"
+                android:text="@string/quality_help"
+                android:textColor="@color/pm_muted"
+                android:textSize="13sp" />
+        </LinearLayout>
+
+        <!-- Later features -->
+        <TextView
+            style="@style/Pm.SectionHeader"
+            android:text="@string/sec_later" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:alpha="0.85"
+            android:background="@drawable/bg_card20"
+            android:orientation="vertical">
+
+            <LinearLayout style="@style/Pm.Row">
+
+                <ImageView
+                    style="@style/Pm.RowIcon"
+                    android:src="@drawable/ic_qr"
+                    app:tint="@color/pm_muted" />
+
+                <LinearLayout style="@style/Pm.RowText">
+
+                    <TextView style="@style/Pm.RowTitle" android:text="@string/later_qr" />
+
+                    <TextView style="@style/Pm.RowSub" android:text="@string/later_qr_sub" />
+                </LinearLayout>
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:background="@drawable/chip_yellow"
+                    android:paddingHorizontal="10dp"
+                    android:paddingVertical="4dp"
+                    android:text="@string/soon"
+                    android:textColor="@color/pm_yellow"
+                    android:textSize="11sp"
+                    android:textStyle="bold" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <!-- About -->
+        <TextView
+            style="@style/Pm.SectionHeader"
+            android:text="@string/sec_about" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="8dp"
+            android:background="@drawable/bg_card20"
+            android:orientation="vertical">
+
+            <LinearLayout
+                android:id="@+id/setHowRow"
+                style="@style/Pm.Row">
+
+                <ImageView
+                    style="@style/Pm.RowIcon"
+                    android:src="@drawable/ic_info"
+                    app:tint="@color/pm_muted" />
+
+                <TextView
+                    style="@style/Pm.RowTitle"
+                    android:layout_width="0dp"
+                    android:layout_weight="1"
+                    android:text="@string/about_how" />
+
+                <ImageView
+                    style="@style/Pm.RowChevron"
+                    android:src="@drawable/ic_chevron"
+                    app:tint="@color/pm_muted" />
+            </LinearLayout>
+
+            <View style="@style/Pm.Divider" />
+
+            <LinearLayout style="@style/Pm.Row">
+
+                <ImageView
+                    style="@style/Pm.RowIcon"
+                    android:src="@drawable/ic_info"
+                    app:tint="@color/pm_muted" />
+
+                <TextView
+                    style="@style/Pm.RowTitle"
+                    android:layout_width="0dp"
+                    android:layout_weight="1"
+                    android:text="@string/about_version" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/version_value"
+                    android:textColor="@color/pm_muted"
+                    android:textSize="14sp" />
+            </LinearLayout>
+        </LinearLayout>
+    </LinearLayout>
+</ScrollView>

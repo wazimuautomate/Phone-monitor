@@ -1,0 +1,55 @@
+name: Desktop EXE
+
+on:
+  push:
+    branches: [main, feature]
+    paths:
+      - "desktop/**"
+      - "helper/**"
+      - "web/**"
+      - "package.json"
+      - ".github/workflows/desktop.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build Windows portable .exe
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Build web + helper + bundle desktop assets
+        run: npm run prepare:desktop
+
+      - name: Build portable .exe
+        run: npm run dist -w desktop
+
+      - name: Upload .exe artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: phone-monitor-desktop
+          path: desktop/release/*.exe
+          if-no-files-found: error
+
+      - name: Publish .exe to the 'desktop-latest' release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view desktop-latest >/dev/null 2>&1 || \
+            gh release create desktop-latest \
+              --title "Phone Monitor Desktop (latest build)" \
+              --notes "Auto-built portable Windows .exe of the Phone Monitor desktop app. Double-click to run — no install." \
+              --prerelease
+          gh release upload desktop-latest desktop/release/*.exe --clobber
