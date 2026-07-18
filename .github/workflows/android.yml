@@ -113,7 +113,10 @@ jobs:
             "$APKSIGNER" verify --print-certs "phone-monitor-release-v${{ steps.ver.outputs.vn }}.apk" | grep -i "SHA-256" || true
           fi
 
+      # A convenience download only — never block the release publish on it
+      # (e.g. when the Actions artifact-storage quota is exhausted).
       - name: Upload artifacts
+        continue-on-error: true
         uses: actions/upload-artifact@v4
         with:
           name: phone-monitor-v${{ steps.ver.outputs.vn }}

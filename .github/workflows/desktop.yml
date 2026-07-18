@@ -59,7 +59,9 @@ jobs:
             "$V" "$V" "$V" > desktop/release/latest.json
           cat desktop/release/latest.json
 
+      # Convenience download only — never block the release publish on it.
       - name: Upload .exe artifact
+        continue-on-error: true
         uses: actions/upload-artifact@v4
         with:
           name: phone-monitor-desktop-${{ steps.ver.outputs.v }}
