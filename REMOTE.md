@@ -55,14 +55,24 @@ Set the **same two values** in the phone app and the desktop app:
 Desktop: **Settings → Remote phones**. Phone: the **Remote access** section.
 
 ## 3. Pair and connect
+
+**Easiest — QR (no typing on the phone):**
+1. On the **desktop**: Settings → **Remote phones** → set the relay server (+ token) →
+   **Show pairing QR**.
+2. On the **phone**: Remote tab → **Scan QR code** → point at the desktop. It joins
+   automatically and appears as a tile. Grant screen capture, and enable **Remote control**
+   (Accessibility) for tap/swipe.
+
+**Manual — by code (fallback):**
 1. On the **phone**: set the relay server (+ token), tap **Start remote**, grant screen
-   capture, and make sure **Remote control** (Accessibility) is enabled. The app shows a
-   **code** like `916 429 577`.
-2. On the **desktop**: Settings → Remote phones → set the relay server (+ token) → enter
-   that code → **Add**. The phone appears as a tile. Click it to view and control — from
-   anywhere.
+   capture. The app shows a **code** like `916 429 577`.
+2. On the **desktop**: Settings → Remote phones → enter that code → **Add**.
 
 The phone keeps its code across reconnects, so you only pair once.
+
+> **Works on mobile data too.** Because both sides dial *out* to the relay, the phone can
+> reach the desktop over **cellular data** while still on Wi-Fi — a wireless path that
+> doesn't depend on your Wi-Fi at all, and the one that works when a full-tunnel VPN is on.
 
 ## 4. Security (read this)
 - **Set `RELAY_TOKEN`.** It's the gate to your relay — without it, anyone who finds the
