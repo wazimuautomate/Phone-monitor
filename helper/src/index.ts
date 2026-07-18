@@ -212,10 +212,12 @@ function lanAppUrls(port: number): string[] {
   for (const addrs of Object.values(os.networkInterfaces())) {
     for (const a of addrs ?? []) {
       if (a.family !== "IPv4" || a.internal) continue;
+      const ip = a.address;
+      // Link-local (APIPA) addresses are never reachable by a phone — skip them.
+      if (ip.startsWith("169.254.")) continue;
       // Rank real home/office Wi-Fi ranges above virtual adapters (Docker / WSL /
       // Hyper-V), which a phone on the actual Wi-Fi can't reach — so the address
       // the dashboard shows first is the one most likely to work.
-      const ip = a.address;
       const rank = ip.startsWith("192.168.")
         ? 0
         : ip.startsWith("10.")

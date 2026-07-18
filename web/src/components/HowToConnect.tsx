@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { IconClose, IconCopy, IconHelp } from "../lib/icons";
+import { QrCode } from "./QrCode";
 
 interface HowToConnectProps {
   url: string | null;
@@ -37,24 +38,33 @@ export function HowToConnect({ url, tokenRequired, onClose }: HowToConnectProps)
               Put this PC and the phone on the <b>same Wi-Fi</b>.
             </li>
             <li>
-              On the phone, open the <b>Phone Monitor</b> app and go to the <b>Remote</b> tab.
+              On the phone, open the <b>Phone Monitor</b> app, go to the <b>Remote</b> tab, and tap{" "}
+              <b>Scan QR code</b>.
             </li>
-            <li>
-              Type this address into <b>Desktop address</b>, then tap <b>Connect</b>:
-            </li>
+            <li>Point it at this code:</li>
           </ol>
 
-          <div style={{ margin: "14px 0" }}>
-            {url ? (
-              <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+          {url ? (
+            <div style={{ display: "flex", justifyContent: "center", margin: "14px 0" }}>
+              <QrCode value={JSON.stringify({ v: 1, url })} size={200} />
+            </div>
+          ) : (
+            <p>Finding this PC’s Wi-Fi address…</p>
+          )}
+
+          <p className="row-sub" style={{ textAlign: "center", marginBottom: 12 }}>
+            Can’t scan? Type this address into <b>Desktop address</b> instead:
+          </p>
+
+          <div style={{ margin: "0 0 14px" }}>
+            {url && (
+              <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", justifyContent: "center" }}>
                 <code className="empty-url">{url}</code>
                 <button className="btn" onClick={copy}>
                   <IconCopy />
                   {copied ? "Copied" : "Copy"}
                 </button>
               </div>
-            ) : (
-              <p>Finding this PC’s Wi-Fi address…</p>
             )}
           </div>
 

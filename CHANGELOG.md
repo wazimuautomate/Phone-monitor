@@ -5,6 +5,23 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this pr
 
 ## [Unreleased]
 
+### Connectivity: QR pairing + relay-based remote (the VPN fix)
+
+The client connects over a **full-tunnel VPN**, which routes every packet out to the VPN provider — so the phone can never reach the desktop's LAN address. The only path that works is one both sides dial *outbound*: the **relay**. This finishes that path and adds QR pairing.
+
+- **QR pairing (desktop shows, phone scans).** The desktop shows a QR code; the phone's Remote tab has a prominent **Scan QR code** button (ZXing, no Google Play Services needed). Typing an address is now the fallback, only when a scan isn't possible.
+  - **Same Wi-Fi:** the "How to connect" dialog shows a QR of the desktop's address.
+  - **Away / on VPN:** Settings → **Remote phones** → *Show pairing QR* mints a code, starts the desktop watching that relay room, and shows a QR carrying the relay + code. The phone scans and joins — **no typing on either side, and it works through the full-tunnel VPN** because both sides reach the relay over the internet.
+- **Desktop "Remote phones" UI (finally wired).** Set a relay server + token, add a phone by QR or by its 9-digit code, and see/remove paired phones. Paired phones reconnect automatically after a restart. (Backend + Android side already existed; the desktop UI was missing.)
+- **The "QR code — coming soon" row is gone** from the phone's Settings, replaced by the working scanner.
+- **LAN address fix:** the desktop now offers its best-ranked reachable interface (and skips link-local `169.254.x`) instead of a regex that could pick a VPN's `10.x` adapter. (Helps non-VPN LAN use; the VPN case is solved by the relay above.)
+
+### A wireless option that isn't Wi-Fi
+
+Asked whether the phone can connect over something other than Wi-Fi without dropping Wi-Fi: **yes — mobile data via the relay.** The phone stays on Wi-Fi and uses its cellular data to reach the relay; nothing gets disconnected, and it works from anywhere. (Bluetooth is far too slow for live screen; Wi-Fi Direct tends to seize the Wi-Fi radio and has poor Windows support.)
+
+> The relay must be hosted (a small always-on server — see `REMOTE.md`) for the remote/QR-over-internet path to work. Same-Wi-Fi QR works with nothing hosted.
+
 ### Mobile app tweaks
 
 - **Remote-control setup moved to Settings.** The "Remote control" card is gone from the Remote (connect) page; it now lives only under Settings → Permissions (where a matching row already was), so the connect screen is just about connecting.

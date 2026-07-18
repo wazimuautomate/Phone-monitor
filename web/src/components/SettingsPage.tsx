@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 import type { ThemeMode } from "../lib/theme";
+import type { RemotePhone } from "../types";
+import { QrCode } from "./QrCode";
 import { patchAlerts, patchSettings, TILE_SIZES, useSettings } from "../lib/settings";
 import {
   appVersion,
@@ -30,6 +32,11 @@ interface SettingsPageProps {
   demoCount: number;
   onAddDemo: () => void;
   onRemoveDemo: () => void;
+  relayCfg: { url: string; token: string };
+  onRelayCfg: (cfg: { url: string; token: string }) => void;
+  remotePhones: RemotePhone[];
+  onRelayConnect: (code: string, label?: string) => void;
+  onRelayDisconnect: (code: string) => void;
 }
 
 function Toggle({ on, onChange, label }: { on: boolean; onChange: (v: boolean) => void; label: string }) {
@@ -40,10 +47,42 @@ function Toggle({ on, onChange, label }: { on: boolean; onChange: (v: boolean) =
   );
 }
 
-export function SettingsPage({ themeMode, onTheme, demoCount, onAddDemo, onRemoveDemo }: SettingsPageProps) {
+export function SettingsPage({
+  themeMode,
+  onTheme,
+  demoCount,
+  onAddDemo,
+  onRemoveDemo,
+  relayCfg,
+  onRelayCfg,
+  remotePhones,
+  onRelayConnect,
+  onRelayDisconnect,
+}: SettingsPageProps) {
   const s = useSettings();
   const [defaults, setDefaults] = useState({ screenshots: "", recordings: "" });
   const desktop = isDesktop();
+
+  const [codeInput, setCodeInput] = useState("");
+  const [qrCode, setQrCode] = useState<string | null>(null);
+
+  const relayReady = relayCfg.url.trim().length > 0;
+
+  const showPairingQr = () => {
+    // Desktop mints the code and starts watching that relay room; the phone
+    // scans the QR and joins it — no typing on either side.
+    const code = String(Math.floor(100000000 + Math.random() * 900000000));
+    onRelayConnect(code, "Paired by QR");
+    setQrCode(code);
+  };
+
+  const addByCode = () => {
+    const c = codeInput.replace(/\D/g, "");
+    if (c.length >= 6) {
+      onRelayConnect(c);
+      setCodeInput("");
+    }
+  };
 
   const [version, setVersion] = useState("—");
   const [update, setUpdate] = useState<UpdateInfo | null>(null);
@@ -318,6 +357,99 @@ export function SettingsPage({ themeMode, onTheme, demoCount, onAddDemo, onRemov
               Add
             </button>
           </div>
+        </div>
+      </div>
+
+      {/* Remote phones (away from home, via the relay) */}
+      <div className="section">
+        <h2 className="section-title">Remote phones</h2>
+        <div className="panel">
+          <div className="row">
+            <div className="row-main">
+              <div className="row-title">Relay server</div>
+              <div className="row-sub">
+                Watch and control phones from anywhere — even on mobile data. Set the same relay
+                server and token on the phone and here.
+              </div>
+            </div>
+          </div>
+
+          <div className="row">
+            <div className="field" style={{ flex: 1 }}>
+              <input
+                placeholder="wss://your-relay-host"
+                value={relayCfg.url}
+                onChange={(e) => onRelayCfg({ ...relayCfg, url: e.target.value.trim() })}
+              />
+            </div>
+          </div>
+          <div className="row">
+            <div className="field" style={{ flex: 1 }}>
+              <input
+                placeholder="Relay token"
+                value={relayCfg.token}
+                onChange={(e) => onRelayCfg({ ...relayCfg, token: e.target.value.trim() })}
+              />
+            </div>
+          </div>
+
+          <div className="row">
+            <div className="row-main">
+              <div className="row-title">Pair a phone</div>
+              <div className="row-sub">
+                {relayReady
+                  ? "Show a QR the phone scans, or type the code the phone is showing."
+                  : "Enter a relay server above first."}
+              </div>
+            </div>
+            <button className="btn primary" onClick={showPairingQr} disabled={!relayReady}>
+              Show pairing QR
+            </button>
+          </div>
+
+          {qrCode && relayReady && (
+            <div className="row" style={{ flexDirection: "column", alignItems: "center", gap: 10 }}>
+              <QrCode
+                value={JSON.stringify({ v: 1, relay: relayCfg.url, relayToken: relayCfg.token, code: qrCode })}
+                size={200}
+              />
+              <div className="row-sub">
+                On the phone: Remote → <b>Scan QR code</b>. Or enter code <b>{qrCode}</b>.
+              </div>
+            </div>
+          )}
+
+          <div className="row">
+            <div className="field" style={{ flex: 1 }}>
+              <input
+                placeholder="Phone code (9 digits)"
+                inputMode="numeric"
+                value={codeInput}
+                onChange={(e) => setCodeInput(e.target.value)}
+              />
+            </div>
+            <button
+              className="btn"
+              onClick={addByCode}
+              disabled={!relayReady || codeInput.replace(/\D/g, "").length < 6}
+            >
+              <IconPlus />
+              Add
+            </button>
+          </div>
+
+          {remotePhones.map((p) => (
+            <div className="row" key={p.code}>
+              <div className="row-main">
+                <div className="row-title">{p.label || "Remote phone"}</div>
+                <div className="row-sub mono">Code {p.code}</div>
+              </div>
+              <button className="btn" onClick={() => onRelayDisconnect(p.code)}>
+                <IconMinus />
+                Remove
+              </button>
+            </div>
+          ))}
         </div>
       </div>
 

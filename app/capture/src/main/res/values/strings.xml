@@ -96,10 +96,6 @@
     <string name="quality_medium">Medium</string>
     <string name="quality_high">High</string>
     <string name="quality_help">Lower quality feels faster on weak Wi-Fi.</string>
-    <string name="sec_later">Later features</string>
-    <string name="later_qr">Pair with a QR code</string>
-    <string name="later_qr_sub">Connect without typing the address</string>
-    <string name="soon">Soon</string>
     <string name="sec_about">About</string>
     <string name="about_how">How to connect</string>
     <string name="about_version">Version</string>
@@ -119,6 +115,10 @@
     <string name="how_away_title">Away from home</string>
     <string name="how_away_steps">1. Enter the same relay server and token on this phone and the desktop.\n2. Tap Start here to get a code.\n3. Type that code into the desktop.</string>
     <string name="how_got_it">Got it</string>
+    <string name="scan_qr">Scan QR code</string>
+    <string name="scan_qr_sub">Point at the QR code shown on your desktop.</string>
+    <string name="scan_prompt">Point at the QR code on the desktop</string>
+    <string name="scan_bad">That QR code isn\'t a Phone Monitor pairing code.</string>
 
     <!-- Dialogs / toasts -->
     <string name="save">Save</string>

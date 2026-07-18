@@ -34,6 +34,8 @@ import androidx.appcompat.app.AppCompatDelegate
 import androidx.core.content.ContextCompat
 import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.google.android.material.button.MaterialButton
+import com.journeyapps.barcodescanner.ScanContract
+import com.journeyapps.barcodescanner.ScanOptions
 import com.tricreta.phonemonitor.databinding.ActivityMainBinding
 import com.tricreta.phonemonitor.databinding.ViewSplashBinding
 import org.json.JSONArray
@@ -72,6 +74,12 @@ class MainActivity : AppCompatActivity() {
             } else {
                 CaptureState.set(CaptureState.ERROR, "Screen-capture permission denied")
             }
+        }
+
+    // Scans the desktop's pairing QR. ZXing handles the camera-permission prompt.
+    private val scanLauncher =
+        registerForActivityResult(ScanContract()) { result ->
+            result.contents?.let { onQrScanned(it) }
         }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -259,6 +267,54 @@ class MainActivity : AppCompatActivity() {
         binding.pageRemote.remoteConnectLocal.setOnClickListener { beginCapture(remote = false) }
         binding.pageRemote.remoteConnectRelay.setOnClickListener { beginCapture(remote = true) }
         binding.pageRemote.remoteDisconnect.setOnClickListener { stopMonitoring() }
+        binding.pageRemote.remoteScanQr.setOnClickListener {
+            scanLauncher.launch(
+                ScanOptions()
+                    .setPrompt(getString(R.string.scan_prompt))
+                    .setBeepEnabled(false)
+                    .setOrientationLocked(false)
+                    .setDesiredBarcodeFormats(ScanOptions.QR_CODE),
+            )
+        }
+    }
+
+    /**
+     * Handle a scanned pairing QR. Payload is JSON:
+     *   relay path: {"v":1,"relay":"wss://…","relayToken":"…","code":"…"}
+     *   LAN path:   {"v":1,"url":"ws://…/app","token":"…"}
+     * A plain (non-JSON) string is treated as a LAN address. The relay path wins
+     * when present — it works from anywhere, including on a full-tunnel VPN.
+     */
+    private fun onQrScanned(text: String) {
+        val remote = binding.pageRemote
+        try {
+            val j = JSONObject(text)
+            val relay = j.optString("relay").trim()
+            val code = j.optString("code").trim()
+            val url = j.optString("url").trim()
+            when {
+                relay.isNotEmpty() && code.isNotEmpty() -> {
+                    remote.remoteRelayUrl.setText(relay)
+                    remote.remoteRelayToken.setText(j.optString("relayToken"))
+                    // Adopt the desktop's pairing code so we join its relay room.
+                    prefs.edit().putString("remoteCode", code).apply()
+                    binding.bottomNav.selectedItemId = R.id.nav_remote
+                    beginCapture(remote = true)
+                }
+                url.isNotEmpty() -> {
+                    remote.remoteHelperUrl.setText(url)
+                    remote.remoteToken.setText(j.optString("token"))
+                    binding.bottomNav.selectedItemId = R.id.nav_remote
+                    beginCapture(remote = false)
+                }
+                else -> CaptureState.set(CaptureState.ERROR, getString(R.string.scan_bad))
+            }
+        } catch (_: Exception) {
+            // Not JSON — assume it's a plain desktop address.
+            remote.remoteHelperUrl.setText(text)
+            binding.bottomNav.selectedItemId = R.id.nav_remote
+            beginCapture(remote = false)
+        }
     }
 
     /**

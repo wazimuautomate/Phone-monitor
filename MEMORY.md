@@ -24,6 +24,8 @@ Client happy after weeks in production; asked for connectivity fixes, mobile UX 
 
 **TODO for the owner:** create a fine-grained read-only PAT (Contents: Read on Phone-monitor only) and set it as repo secret `RELEASES_READ_TOKEN`, or the in-app update check stays disabled (empty token embedded). Relay still needs hosting (Render/VPS).
 
+Then shipped the **connectivity/A group**: QR pairing (desktop shows QR via `web/src/components/QrCode.tsx` using the new `qrcode` dep; phone scans with ZXing `zxing-android-embedded`), desktop **Remote phones** UI in `SettingsPage` wiring `relay-connect`/`relay-disconnect` (+ reconnection on hub open in `App.tsx`, `RemotePhone` now used), and the LAN advertise fix. QR payload JSON: `{v,relay,relayToken,code}` (relay path, wins) or `{v,url,token}` (LAN). Relay pairing uses **desktop-mints-code → phone-adopts** — works with the existing relay `onAgentConnect(desired)` (no relay change). Removed the "QR coming soon" settings row. **Key fact:** client is full-tunnel VPN → only the relay path fixes them; LAN/QR-LAN won't help on VPN. Relay still needs hosting before remote works.
+
 ---
 
 ## 2026-07-15 — CRITICAL: app died when granting "Entire screen" (Android 16)

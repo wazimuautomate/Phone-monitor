@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { connectHub, type ControlCmd, type Hub, type HubMessage } from "./lib/ws";
-import type { Device, ServerInfo } from "./types";
+import type { Device, RemotePhone, ServerInfo } from "./types";
 import { applyTheme, getThemeMode, setThemeMode, watchSystemTheme, type ThemeMode } from "./lib/theme";
 import { loadJSON, saveJSON } from "./lib/persist";
 import { getSettings, useSettings } from "./lib/settings";
@@ -39,6 +39,13 @@ export function App() {
   /** Device ids on stage in the control room. Empty = room closed. */
   const [roomIds, setRoomIds] = useState<string[]>([]);
 
+  // Away-from-home relay: the server/token to broker through, and the phones
+  // paired to it (by code). Reconnected on every hub (re)connect.
+  const [relayCfg, setRelayCfg] = useState<{ url: string; token: string }>(() =>
+    loadJSON("pm.relay", { url: "", token: "" }),
+  );
+  const [remotePhones, setRemotePhones] = useState<RemotePhone[]>(() => loadJSON("pm.remotePhones", []));
+
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const hubRef = useRef<Hub | null>(null);
   const history = useHistory();
@@ -67,6 +74,14 @@ export function App() {
   useEffect(() => saveJSON("pm.nicknames", nicknames), [nicknames]);
   useEffect(() => saveJSON("pm.hidden", hidden), [hidden]);
   useEffect(() => saveJSON("pm.order", order), [order]);
+  useEffect(() => saveJSON("pm.relay", relayCfg), [relayCfg]);
+  useEffect(() => saveJSON("pm.remotePhones", remotePhones), [remotePhones]);
+
+  // Refs so the hub's onOpen (a stable closure) can reconnect saved phones.
+  const relayCfgRef = useRef(relayCfg);
+  relayCfgRef.current = relayCfg;
+  const remotePhonesRef = useRef(remotePhones);
+  remotePhonesRef.current = remotePhones;
 
   // ---- Alerts ----
   const pushAlert = useCallback((type: AlertType, title: string, detail: string, severity: AlertSeverity) => {
@@ -168,7 +183,16 @@ export function App() {
   // ---- Hub ----
   useEffect(() => {
     const hub = connectHub({
-      onOpen: () => setConnected(true),
+      onOpen: () => {
+        setConnected(true);
+        // Re-attach every saved remote phone so they survive helper restarts.
+        const { url, token } = relayCfgRef.current;
+        if (url) {
+          for (const p of remotePhonesRef.current) {
+            hub.send({ type: "relay-connect", relayUrl: url, code: p.code, token });
+          }
+        }
+      },
       onClose: () => setConnected(false),
       onMessage: (msg: HubMessage) => {
         handleAlerts(msg);
@@ -188,6 +212,19 @@ export function App() {
   }, [handleAlerts]);
 
   const send = (msg: unknown) => hubRef.current?.send(msg);
+
+  // ---- Remote phones (relay) ----
+  const relayConnect = (code: string, label?: string) => {
+    const { url, token } = relayCfg;
+    if (!url || !code) return;
+    send({ type: "relay-connect", relayUrl: url, code, token });
+    setRemotePhones((prev) => (prev.some((p) => p.code === code) ? prev : [...prev, { code, label }]));
+  };
+  const relayDisconnect = (code: string) => {
+    send({ type: "relay-disconnect", code });
+    setRemotePhones((prev) => prev.filter((p) => p.code !== code));
+  };
+
   const sendControl = useCallback(
     (deviceId: string, cmd: ControlCmd) => hubRef.current?.sendControl(deviceId, cmd),
     [],
@@ -229,7 +266,10 @@ export function App() {
     const host = location.hostname;
     const isLocal = host === "localhost" || host === "127.0.0.1";
     if (!isLocal) return `${location.protocol === "https:" ? "wss" : "ws"}://${location.host}/app`;
-    return serverInfo.appUrls.find((u) => /\/\/(192\.168|10\.)/.test(u)) ?? serverInfo.appUrls[0] ?? null;
+    // The helper already ranks the most-likely-reachable interface first, so
+    // take the top candidate rather than guessing by regex (which could prefer a
+    // VPN's 10.x adapter over the real Wi-Fi address).
+    return serverInfo.appUrls[0] ?? null;
   }, [serverInfo]);
 
   // ---- Actions ----
@@ -335,6 +375,11 @@ export function App() {
               demoCount={demoCount}
               onAddDemo={() => send({ type: "mock-add" })}
               onRemoveDemo={() => send({ type: "mock-remove" })}
+              relayCfg={relayCfg}
+              onRelayCfg={setRelayCfg}
+              remotePhones={remotePhones}
+              onRelayConnect={relayConnect}
+              onRelayDisconnect={relayDisconnect}
             />
           )}
         </div>
