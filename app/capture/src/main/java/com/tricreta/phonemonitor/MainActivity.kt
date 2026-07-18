@@ -1,4 +1,4 @@
-package com.phonemonitor.capture
+package com.tricreta.phonemonitor
 
 import android.accessibilityservice.AccessibilityServiceInfo
 import android.app.Activity
@@ -33,8 +33,8 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.core.content.ContextCompat
 import com.google.android.material.button.MaterialButton
-import com.phonemonitor.capture.databinding.ActivityMainBinding
-import com.phonemonitor.capture.databinding.ViewSplashBinding
+import com.tricreta.phonemonitor.databinding.ActivityMainBinding
+import com.tricreta.phonemonitor.databinding.ViewSplashBinding
 import org.json.JSONArray
 import org.json.JSONObject
 import java.net.Inet4Address
@@ -556,6 +556,9 @@ class MainActivity : AppCompatActivity() {
         s.setNotifRow.setOnClickListener { onNotifRow() }
         s.setNameRow.setOnClickListener { renamePhone() }
         s.setHowRow.setOnClickListener { binding.bottomNav.selectedItemId = R.id.nav_home }
+
+        // Show the real installed version instead of a hardcoded string.
+        s.setVersionValue.text = "v" + BuildConfig.VERSION_NAME
     }
 
     private fun currentTheme(): String = prefs.getString("themeMode", App.THEME_SYSTEM) ?: App.THEME_SYSTEM

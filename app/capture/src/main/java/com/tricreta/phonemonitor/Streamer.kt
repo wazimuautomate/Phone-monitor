@@ -1,4 +1,4 @@
-package com.phonemonitor.capture
+package com.tricreta.phonemonitor
 
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.OkHttpClient

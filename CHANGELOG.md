@@ -5,6 +5,19 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this pr
 
 ## [Unreleased]
 
+### Permanent identity, release signing & versioning (v1.0.0 baseline)
+
+Established the app's **permanent, updatable identity** so future releases install in place without uninstalling. This first release is a one-time clean break (see below).
+
+- **Identity frozen:** Android `applicationId`/`namespace` → `com.tricreta.phonemonitor`; desktop `appId` → `com.tricreta.phonemonitor.desktop`. Kotlin package tree moved to `com/tricreta/phonemonitor/`.
+- **Versions reset to the permanent baseline:** `versionName 1.0.0`, Android `versionCode 1` (both apps). The About screen now shows the real `BuildConfig.VERSION_NAME` instead of a hardcoded "2.0".
+- **Permanent release keystore** (`phone-monitor-release.jks`, alias `phoneMonitorRelease`, JKS, RSA-2048, valid to 2053). SHA-256 `66:A6:…:AE:77`. Keystore + passwords live outside git; four `ANDROID_*` GitHub secrets drive CI signing. Documented in **`SIGNING.md`** (no passwords).
+- **CI now builds & signs both variants:** `android.yml` decodes the keystore, runs `assembleRelease` (signed with the permanent key) and `assembleDebug`, then deletes the temp keystore. Outputs are separated and versioned: `phone-monitor-release-v<v>.apk` and `phone-monitor-debug-v<v>.apk`, plus a `latest.json` update feed. A guard **fails the build if `versionCode` is reused or decreased**.
+- **Debug/release coexist:** debug gets `.debug` applicationId suffix + "Phone Monitor Debug" label, so it can never overwrite the release app.
+- `.gitignore` now also covers `keystore.properties` and `local.properties`.
+
+> **One-time uninstall:** because the package name *and* signing key both change here, existing installs must be removed once before installing `v1.0.0`. Every release after this updates in place with no data loss.
+
 ### Repo cleanup (v1 done — no code behaviour change)
 
 Pared the repo back to the three things that ship: the **desktop app** (`desktop/` + `web/` + `helper/`), the **mobile agent** (`app/`), and the **relay** (`relay/`, kept for the next version).

@@ -1,4 +1,4 @@
-package com.phonemonitor.capture
+package com.tricreta.phonemonitor
 
 /** In-process capture status shared between the service and the activity UI. */
 object CaptureState {

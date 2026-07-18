@@ -1,4 +1,4 @@
-package com.phonemonitor.capture
+package com.tricreta.phonemonitor
 
 import android.accessibilityservice.AccessibilityService
 import android.accessibilityservice.GestureDescription

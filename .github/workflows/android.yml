@@ -13,11 +13,8 @@ permissions:
 
 jobs:
   build:
-    name: Build debug APK
+    name: Build & sign APKs
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: app
     steps:
       - uses: actions/checkout@v4
 
@@ -28,7 +25,6 @@ jobs:
           java-version: "17"
 
       - name: Accept Android SDK licenses
-        working-directory: ${{ github.workspace }}
         run: yes | "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" --licenses >/dev/null 2>&1 || true
 
       - name: Set up Gradle
@@ -36,47 +32,110 @@ jobs:
         with:
           gradle-version: "8.9"
 
-      - name: Build debug APK
-        run: gradle assembleDebug --no-daemon --stacktrace
-
-      # Name every artifact after the version so a downloaded APK is
-      # identifiable on sight, instead of a pile of same-named files.
+      # Version is the source of truth in the gradle file; everything is named after it.
       - name: Read app version
         id: ver
-        working-directory: ${{ github.workspace }}
         run: |
-          V=$(sed -n 's/.*versionName = "\(.*\)".*/\1/p' app/capture/build.gradle.kts | head -1)
-          test -n "$V" || { echo "could not read versionName"; exit 1; }
-          echo "v=$V" >> "$GITHUB_OUTPUT"
-          echo "APK version: $V"
+          VN=$(sed -n 's/.*versionName = "\(.*\)".*/\1/p' app/capture/build.gradle.kts | head -1)
+          VC=$(sed -n 's/.*versionCode = \([0-9]\+\).*/\1/p' app/capture/build.gradle.kts | head -1)
+          test -n "$VN" && test -n "$VC" || { echo "could not read version"; exit 1; }
+          echo "vn=$VN" >> "$GITHUB_OUTPUT"
+          echo "vc=$VC" >> "$GITHUB_OUTPUT"
+          echo "versionName=$VN versionCode=$VC"
 
-      - name: Stage APK as phone-monitor-<version>.apk
-        working-directory: ${{ github.workspace }}
-        run: cp app/capture/build/outputs/apk/debug/*.apk "phone-monitor-${{ steps.ver.outputs.v }}.apk"
-
-      - name: Upload APK artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: phone-monitor-${{ steps.ver.outputs.v }}
-          path: phone-monitor-${{ steps.ver.outputs.v }}.apk
-          if-no-files-found: error
-
-      - name: Publish APK to the 'capture-latest' release
-        working-directory: ${{ github.workspace }}
+      # versionCode must strictly increase — never reuse or decrease it.
+      - name: Guard against versionCode reuse/decrease
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          NEW="${{ steps.ver.outputs.vc }}"
+          OLD=0
+          if gh release download capture-latest -R "$GITHUB_REPOSITORY" -p latest.json -D prev 2>/dev/null; then
+            OLD=$(sed -n 's/.*"versionCode"[: ]*\([0-9]\+\).*/\1/p' prev/latest.json | head -1)
+            OLD=${OLD:-0}
+          fi
+          echo "published versionCode=$OLD, new versionCode=$NEW"
+          if [ "$NEW" -le "$OLD" ]; then
+            echo "::error::versionCode $NEW must be greater than the published $OLD"
+            exit 1
+          fi
+
+      - name: Build debug APK
+        working-directory: app
+        run: gradle assembleDebug --no-daemon --stacktrace
+
+      # Decode the permanent keystore from secrets into a temp file + properties.
+      - name: Prepare release signing
+        env:
+          KS_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          KS_PASS: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KS_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KS_KEYPASS: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          if [ -z "$KS_B64" ]; then echo "::error::ANDROID_KEYSTORE_BASE64 secret is missing"; exit 1; fi
+          KS_PATH="$GITHUB_WORKSPACE/app/phone-monitor-release.jks"
+          echo "$KS_B64" | base64 -d > "$KS_PATH"
+          {
+            echo "storeFile=$KS_PATH"
+            echo "storePassword=$KS_PASS"
+            echo "keyAlias=$KS_ALIAS"
+            echo "keyPassword=$KS_KEYPASS"
+          } > "$GITHUB_WORKSPACE/app/keystore.properties"
+
+      - name: Build release APK (signed)
+        working-directory: app
+        run: gradle assembleRelease --no-daemon --stacktrace
+
+      # Always remove signing material, even if the build failed.
+      - name: Delete signing material
+        if: always()
+        run: rm -f "$GITHUB_WORKSPACE/app/phone-monitor-release.jks" "$GITHUB_WORKSPACE/app/keystore.properties"
+
+      - name: Stage named APKs + update feed
+        run: |
+          VN="${{ steps.ver.outputs.vn }}"
+          VC="${{ steps.ver.outputs.vc }}"
+          cp app/capture/build/outputs/apk/debug/*.apk "phone-monitor-debug-v${VN}.apk"
+          cp app/capture/build/outputs/apk/release/*.apk "phone-monitor-release-v${VN}.apk"
+          printf '{"versionCode": %s, "versionName": "%s", "apk": "phone-monitor-release-v%s.apk", "notes": "Phone Monitor %s"}\n' \
+            "$VC" "$VN" "$VN" "$VN" > latest.json
+          echo "staged:"; ls -1 phone-monitor-*.apk latest.json
+
+      - name: Verify release signature
+        run: |
+          APKSIGNER=$(find "$ANDROID_SDK_ROOT/build-tools" -name apksigner | sort | tail -1)
+          if [ -n "$APKSIGNER" ]; then
+            "$APKSIGNER" verify --print-certs "phone-monitor-release-v${{ steps.ver.outputs.vn }}.apk" | grep -i "SHA-256" || true
+          fi
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: phone-monitor-v${{ steps.ver.outputs.vn }}
+          path: |
+            phone-monitor-debug-v${{ steps.ver.outputs.vn }}.apk
+            phone-monitor-release-v${{ steps.ver.outputs.vn }}.apk
+          if-no-files-found: error
+
+      - name: Publish to the 'capture-latest' release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          VN="${{ steps.ver.outputs.vn }}"
           gh release view capture-latest >/dev/null 2>&1 || \
             gh release create capture-latest \
               --title "Phone Monitor (latest build)" \
-              --notes "Auto-built APK from the latest push. Install on Tier-2 phones." \
+              --notes "Install phone-monitor-release-v<version>.apk on phones. The first release-signed build requires uninstalling any older build once; future updates install in place. The -debug APK is for development only." \
               --prerelease
-          # Drop the asset we're about to replace. --clobber alone intermittently
-          # loses a race and fails the whole build with
-          # "HTTP 422: ReleaseAsset.name already exists" — after the APK has
-          # already built fine. Delete first, then upload.
-          gh release delete-asset capture-latest "phone-monitor-${{ steps.ver.outputs.v }}.apk" -y || true
-          # Unversioned names from older builds — every APK looked identical.
+          # Delete first — --clobber alone intermittently 422s ("asset already exists").
+          for f in "phone-monitor-debug-v${VN}.apk" "phone-monitor-release-v${VN}.apk" latest.json; do
+            gh release delete-asset capture-latest "$f" -y || true
+          done
+          # Drop legacy unversioned / old-scheme names from earlier builds.
+          gh release delete-asset capture-latest "phone-monitor-${VN}.apk" -y || true
           gh release delete-asset capture-latest phone-monitor.apk -y || true
           gh release delete-asset capture-latest phone-monitor-capture.apk -y || true
-          gh release upload capture-latest "phone-monitor-${{ steps.ver.outputs.v }}.apk" --clobber
+          gh release upload capture-latest \
+            "phone-monitor-debug-v${VN}.apk" \
+            "phone-monitor-release-v${VN}.apk" \
+            latest.json --clobber

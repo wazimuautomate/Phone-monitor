@@ -1,4 +1,4 @@
-package com.phonemonitor.capture
+package com.tricreta.phonemonitor
 
 import android.app.Application
 import android.content.Context

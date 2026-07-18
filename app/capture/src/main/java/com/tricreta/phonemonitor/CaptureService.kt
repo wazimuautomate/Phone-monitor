@@ -1,4 +1,4 @@
-package com.phonemonitor.capture
+package com.tricreta.phonemonitor
 
 import android.app.Notification
 import android.app.NotificationChannel

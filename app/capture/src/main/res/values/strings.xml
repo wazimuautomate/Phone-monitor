@@ -107,7 +107,7 @@
     <string name="sec_about">About</string>
     <string name="about_how">How to connect</string>
     <string name="about_version">Version</string>
-    <string name="version_value">2.0</string>
+    <string name="version_value">1.0.0</string>
 
     <!-- Dialogs / toasts -->
     <string name="save">Save</string>

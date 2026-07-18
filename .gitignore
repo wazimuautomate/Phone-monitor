@@ -25,8 +25,11 @@ helper/screenshots/
 app/.gradle/
 app/**/build/
 app/local.properties
+local.properties
+# release signing — NEVER commit the keystore or its passwords
 *.keystore
 *.jks
+keystore.properties
 
 # os / editor
 .DS_Store

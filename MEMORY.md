@@ -5,6 +5,23 @@ Newest first. One entry per work session: what was done, decisions made, and wha
 
 ---
 
+## 2026-07-18 — Production round: permanent identity + signing (C-baseline)
+
+Client happy after weeks in production; asked for connectivity fixes, mobile UX tweaks, and a proper updatable release. Building in the planned order; this entry = the signing/identity baseline everything else depends on.
+
+**Done this step (C1–C5):**
+- Renamed Android identity `com.phonemonitor.capture` → **`com.tricreta.phonemonitor`** (namespace, applicationId, moved `com/tricreta/phonemonitor/` package tree, all 6 Kotlin files). Desktop `appId` → **`com.tricreta.phonemonitor.desktop`**.
+- Reset both apps to **1.0.0 / versionCode 1** (fresh permanent identity, so the reset from 3.1.0 is legitimate). About screen binds to `BuildConfig.VERSION_NAME` (added `buildConfig = true`).
+- Minted the **permanent keystore** with a portable Temurin JRE (no Android Studio locally): `C:\Users\ADMIN\.phone-monitor-signing\phone-monitor-release.jks`, alias `phoneMonitorRelease`, JKS, distinct store/key passwords. Backups (`CREDENTIALS.txt`, base64) in that folder — **outside git**. SHA-256 `66:A6:…:AE:77`.
+- Set 4 repo secrets (`ANDROID_KEYSTORE_BASE64/PASSWORD`, `ANDROID_KEY_ALIAS/PASSWORD`) via `gh`. Gradle `signingConfigs.release` reads `keystore.properties` or env. `android.yml` decodes→signs→deletes; separate debug/release naming; `latest.json` feed; versionCode guard. `SIGNING.md` documents it all (no passwords).
+- Debug coexists via `.debug` suffix + "Phone Monitor Debug" label.
+
+**One-time uninstall** required for existing phones this release (package + key both changed). Documented in `SIGNING.md` + `CHANGELOG`.
+
+**Next:** C7 in-app updates (embed read-only token) → B1/B2 mobile UX → A4/A2/A1 relay finish + QR pairing + host relay. VPN is **full-tunnel** so the relay is the real connectivity fix.
+
+---
+
 ## 2026-07-15 — CRITICAL: app died when granting "Entire screen" (Android 16)
 
 Client's Android 16 phone: tap Connect → consent dialog → "Entire screen" → **app dies instantly**. Never reproduced on the owner's SM-A055F (Android 13/14).
