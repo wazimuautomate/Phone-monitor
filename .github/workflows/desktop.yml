@@ -66,7 +66,9 @@ jobs:
           path: desktop/release/*.exe
           if-no-files-found: error
 
+      # Publish to the client update channel only from main (tested releases).
       - name: Publish .exe to the 'desktop-latest' release
+        if: github.ref == 'refs/heads/main'
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}

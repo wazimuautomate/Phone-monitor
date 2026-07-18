@@ -62,12 +62,8 @@
     <string name="remote_code_placeholder">— — —</string>
     <string name="relay_need_addr">Enter the relay address first.</string>
 
-    <string name="remote_control">Remote control</string>
     <string name="on">On</string>
     <string name="off">Off</string>
-    <string name="remote_control_explain">Lets your desktop tap, swipe and type on this phone. Watching the screen works without it.</string>
-    <string name="manage_android">Manage in Android settings</string>
-    <string name="turn_on_control">Turn on remote control</string>
 
     <!-- History -->
     <string name="recent_connections">Recent connections</string>
@@ -116,6 +112,13 @@
     <string name="update_downloading">Downloading update…</string>
     <string name="update_failed">Couldn\'t check: %1$s</string>
     <string name="update_not_configured">Updates aren\'t enabled for this build</string>
+    <string name="how_sheet_title">How to connect</string>
+    <string name="how_sheet_sub">Show this phone on your desktop — nearby or from anywhere.</string>
+    <string name="how_local_title">On the same Wi-Fi</string>
+    <string name="how_local_steps">1. Open Phone Monitor on your desktop.\n2. On the Remote tab, scan the desktop\'s QR code — or type the address it shows.\n3. Tap Connect.</string>
+    <string name="how_away_title">Away from home</string>
+    <string name="how_away_steps">1. Enter the same relay server and token on this phone and the desktop.\n2. Tap Start here to get a code.\n3. Type that code into the desktop.</string>
+    <string name="how_got_it">Got it</string>
 
     <!-- Dialogs / toasts -->
     <string name="save">Save</string>

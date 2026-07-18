@@ -5,6 +5,15 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this pr
 
 ## [Unreleased]
 
+### Mobile app tweaks
+
+- **Remote-control setup moved to Settings.** The "Remote control" card is gone from the Remote (connect) page; it now lives only under Settings → Permissions (where a matching row already was), so the connect screen is just about connecting.
+- **"How to connect" now slides up in place.** Tapping it opens a bottom-sheet with the connection steps instead of jumping you to the Home tab.
+
+### Release process
+
+- CI publishes to the client update channels (`capture-latest` / `desktop-latest`) and enforces the versionCode guard **only on `main`**. Pushes to `feature` build, sign and upload artifacts for testing but never touch what the installed apps see as "latest".
+
 ### In-app updates (both apps)
 
 Both apps can now update themselves to the latest version **without uninstalling or losing data** — no more manual re-sideloading / re-installing.

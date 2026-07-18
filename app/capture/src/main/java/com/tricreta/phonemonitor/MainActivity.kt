@@ -32,6 +32,7 @@ import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.core.content.ContextCompat
+import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.google.android.material.button.MaterialButton
 import com.tricreta.phonemonitor.databinding.ActivityMainBinding
 import com.tricreta.phonemonitor.databinding.ViewSplashBinding
@@ -258,7 +259,6 @@ class MainActivity : AppCompatActivity() {
         binding.pageRemote.remoteConnectLocal.setOnClickListener { beginCapture(remote = false) }
         binding.pageRemote.remoteConnectRelay.setOnClickListener { beginCapture(remote = true) }
         binding.pageRemote.remoteDisconnect.setOnClickListener { stopMonitoring() }
-        binding.pageRemote.remoteControlBtn.setOnClickListener { openAccessibilitySettings() }
     }
 
     /**
@@ -495,12 +495,9 @@ class MainActivity : AppCompatActivity() {
     // ---- Remote control (accessibility) ----
 
     private fun renderControlStatus() {
-        val enabled = isControlEnabled()
-        renderChip(binding.pageRemote.remoteControlChip, enabled)
-        renderChip(binding.pageSettings.setRemoteChip, enabled)
-        binding.pageRemote.remoteControlBtn.setText(
-            if (enabled) R.string.manage_android else R.string.turn_on_control,
-        )
+        // Remote control now lives only in Settings (its card was removed from
+        // the Remote page).
+        renderChip(binding.pageSettings.setRemoteChip, isControlEnabled())
     }
 
     /** True if our ControlService is in the system's enabled-accessibility list. */
@@ -538,6 +535,15 @@ class MainActivity : AppCompatActivity() {
         runCatching { startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)) }
     }
 
+    /** Slide-up card explaining how to connect — stays in place (no nav jump). */
+    private fun showHowToConnect() {
+        val sheet = BottomSheetDialog(this)
+        val view = layoutInflater.inflate(R.layout.sheet_how_to_connect, null)
+        sheet.setContentView(view)
+        view.findViewById<View>(R.id.howGotIt).setOnClickListener { sheet.dismiss() }
+        sheet.show()
+    }
+
     // ---- Settings ----
 
     private fun setupSettings() {
@@ -555,7 +561,7 @@ class MainActivity : AppCompatActivity() {
         s.setRotateRow.setOnClickListener { requestWriteSettings() }
         s.setNotifRow.setOnClickListener { onNotifRow() }
         s.setNameRow.setOnClickListener { renamePhone() }
-        s.setHowRow.setOnClickListener { binding.bottomNav.selectedItemId = R.id.nav_home }
+        s.setHowRow.setOnClickListener { showHowToConnect() }
         s.setUpdateRow.setOnClickListener {
             val pending = pendingUpdate
             if (pending != null) startUpdateDownload(pending) else checkForUpdates()

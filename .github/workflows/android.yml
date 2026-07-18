@@ -44,7 +44,9 @@ jobs:
           echo "versionName=$VN versionCode=$VC"
 
       # versionCode must strictly increase — never reuse or decrease it.
+      # Only enforced for real releases (main); feature builds iterate freely.
       - name: Guard against versionCode reuse/decrease
+        if: github.ref == 'refs/heads/main'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -120,7 +122,10 @@ jobs:
             phone-monitor-release-v${{ steps.ver.outputs.vn }}.apk
           if-no-files-found: error
 
+      # Publish to the client update channel only from main (tested releases).
+      # Feature builds are downloadable CI artifacts only (above).
       - name: Publish to the 'capture-latest' release
+        if: github.ref == 'refs/heads/main'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |

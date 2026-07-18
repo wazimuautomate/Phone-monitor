@@ -20,6 +20,10 @@ Client happy after weeks in production; asked for connectivity fixes, mobile UX 
 
 **Next:** C7 in-app updates (embed read-only token) → B1/B2 mobile UX → A4/A2/A1 relay finish + QR pairing + host relay. VPN is **full-tunnel** so the relay is the real connectivity fix.
 
+**Verified:** C1–C5 built green in CI; release APK cert SHA-256 = `66a694…aeae77` (matches keystore). Then shipped **C7** (in-app updates, both apps; embedded `RELEASES_READ_TOKEN` — still to be created) and **B1/B2** (remote-control card moved off Remote page to Settings; "How to connect" is now a bottom-sheet, no nav jump). **Release-process change:** the versionCode guard + publish-to-update-channel now run **on `main` only** — `feature` pushes just build/sign/artifact (they were clobbering `capture-latest` and the guard blocked reused versionCodes on dev pushes).
+
+**TODO for the owner:** create a fine-grained read-only PAT (Contents: Read on Phone-monitor only) and set it as repo secret `RELEASES_READ_TOKEN`, or the in-app update check stays disabled (empty token embedded). Relay still needs hosting (Render/VPS).
+
 ---
 
 ## 2026-07-15 — CRITICAL: app died when granting "Entire screen" (Android 16)
