@@ -5,7 +5,7 @@
 // Run AFTER `npm run build -w web` and `npm run build -w helper` (this script
 // bundles helper/dist/index.js, so the helper must be compiled first).
 import { build } from "esbuild";
-import { cpSync, existsSync, mkdirSync, rmSync } from "node:fs";
+import { cpSync, existsSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -45,4 +45,13 @@ await build({
   logLevel: "info",
 });
 console.log("[desktop/build] bundled helper -> build/helper.cjs");
+
+// 3) Embed the in-app update config. The read-only token is injected from CI
+//    (RELEASES_READ_TOKEN) and is EMPTY on local builds, which simply disables
+//    the update check. Never commit a token to source.
+writeFileSync(
+  path.join(outDir, "update-config.json"),
+  JSON.stringify({ token: process.env.RELEASES_READ_TOKEN || "", repo: "wazimuautomate/Phone-monitor" }),
+);
+console.log("[desktop/build] wrote build/update-config.json");
 console.log("[desktop/build] assets ready:", outDir);

@@ -30,6 +30,11 @@ jobs:
         run: npm install
 
       - name: Build web + helper + bundle desktop assets
+        env:
+          # Embedded read-only token so the installed app can read update
+          # releases from the private repo. Empty if the secret is unset —
+          # which just disables the in-app update check.
+          RELEASES_READ_TOKEN: ${{ secrets.RELEASES_READ_TOKEN }}
         run: npm run prepare:desktop
 
       - name: Build installer + portable .exe
@@ -44,6 +49,15 @@ jobs:
           test -n "$V" || { echo "could not read version"; exit 1; }
           echo "v=$V" >> "$GITHUB_OUTPUT"
           echo "Desktop version: $V"
+
+      # Update feed the installed app reads to detect newer versions.
+      - name: Write desktop update feed
+        shell: bash
+        run: |
+          V="${{ steps.ver.outputs.v }}"
+          printf '{"version": "%s", "exe": "PhoneMonitor-Setup-%s.exe", "notes": "Phone Monitor %s"}\n' \
+            "$V" "$V" "$V" > desktop/release/latest.json
+          cat desktop/release/latest.json
 
       - name: Upload .exe artifact
         uses: actions/upload-artifact@v4
@@ -64,7 +78,7 @@ jobs:
               --prerelease
           # Delete first: --clobber alone intermittently 422s with
           # "ReleaseAsset.name already exists" and fails an otherwise-good build.
-          for f in desktop/release/*.exe; do
+          for f in desktop/release/*.exe desktop/release/latest.json; do
             gh release delete-asset desktop-latest "$(basename "$f")" -y || true
           done
-          gh release upload desktop-latest desktop/release/*.exe --clobber
+          gh release upload desktop-latest desktop/release/*.exe desktop/release/latest.json --clobber

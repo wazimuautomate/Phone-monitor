@@ -22,6 +22,8 @@ const {
   powerSaveBlocker,
 } = require("electron");
 
+const updater = require("./updater");
+
 const PORT = Number(process.env.PM_PORT || 8787);
 const HELPER_URL = `http://127.0.0.1:${PORT}/`;
 
@@ -175,6 +177,34 @@ function registerIpc() {
     return win.isFullScreen();
   });
   ipcMain.handle("pm:is-fullscreen", () => !!win && win.isFullScreen());
+
+  // ---- In-app update ----
+  ipcMain.handle("pm:check-update", () => updater.checkForUpdate(__dirname, app.getVersion()));
+  ipcMain.handle("pm:install-update", async (_e, { assetUrl, exe }) => {
+    const file = await updater.downloadInstaller(__dirname, assetUrl, exe);
+    // Launch the NSIS installer, then quit so it can replace files in place.
+    // Same appId => it updates the existing install without uninstalling.
+    logLine(`installing update from ${file}`);
+    shell.openPath(file);
+    setTimeout(() => app.quit(), 500);
+    return true;
+  });
+}
+
+// Quietly check on launch and let the renderer surface a badge if an update is
+// waiting. Never blocks startup; failures are ignored.
+function checkForUpdateOnLaunch() {
+  setTimeout(async () => {
+    try {
+      const info = await updater.checkForUpdate(__dirname, app.getVersion());
+      if (info.status === "available" && win && !win.isDestroyed()) {
+        win.webContents.send("pm:update-available", info);
+        logLine(`update available: v${info.version}`);
+      }
+    } catch {
+      /* offline / not configured — ignore */
+    }
+  }, 4000);
 }
 
 function createWindow() {
@@ -244,6 +274,7 @@ function main() {
       reportFatal(`The background service couldn't start on port ${PORT}. Is Phone Monitor already running?`, err);
     }
     createWindow();
+    checkForUpdateOnLaunch();
 
     app.on("activate", () => {
       if (BrowserWindow.getAllWindows().length === 0) createWindow();

@@ -108,6 +108,14 @@
     <string name="about_how">How to connect</string>
     <string name="about_version">Version</string>
     <string name="version_value">1.0.0</string>
+    <string name="about_check_updates">Check for updates</string>
+    <string name="update_idle">Tap to check for a new version</string>
+    <string name="update_checking">Checking…</string>
+    <string name="update_uptodate">You\'re on the latest version</string>
+    <string name="update_available">Update available: v%1$s — tap to install</string>
+    <string name="update_downloading">Downloading update…</string>
+    <string name="update_failed">Couldn\'t check: %1$s</string>
+    <string name="update_not_configured">Updates aren\'t enabled for this build</string>
 
     <!-- Dialogs / toasts -->
     <string name="save">Save</string>

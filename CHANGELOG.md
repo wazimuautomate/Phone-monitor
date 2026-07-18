@@ -5,6 +5,15 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this pr
 
 ## [Unreleased]
 
+### In-app updates (both apps)
+
+Both apps can now update themselves to the latest version **without uninstalling or losing data** — no more manual re-sideloading / re-installing.
+
+- **Android:** Settings → About → **Check for updates**. Reads the `capture-latest` release's `latest.json`, and if the `versionCode` is higher, downloads the signed release APK and launches the installer (`PackageInstaller` via a `FileProvider`). Same identity + key ⇒ it updates in place.
+- **Desktop:** Settings → **About & updates** → Check for updates (plus a quiet check on launch). Reads the `desktop-latest` feed and, if newer, downloads and runs the NSIS installer, which updates the existing install in place. Implemented with Node built-ins (no `electron-updater` dependency to package).
+- **Private-repo distribution:** the apps authenticate to the private repo's releases with an **embedded read-only token** (`RELEASES_READ_TOKEN`), injected at build time — empty locally (check disabled), never committed to source.
+- CI now publishes an update feed alongside the binaries (`latest.json` for both `capture-latest` and `desktop-latest`).
+
 ### Permanent identity, release signing & versioning (v1.0.0 baseline)
 
 Established the app's **permanent, updatable identity** so future releases install in place without uninstalling. This first release is a one-time clean break (see below).

@@ -34,4 +34,16 @@ contextBridge.exposeInMainWorld("desktop", {
     ipcRenderer.on("pm:fullscreen-changed", handler);
     return () => ipcRenderer.off("pm:fullscreen-changed", handler);
   },
+
+  // ---- Updates ----
+  /** Check the release feed. Resolves to a status object (see updater.js). */
+  checkForUpdate: () => ipcRenderer.invoke("pm:check-update"),
+  /** Download the installer and launch it (the app quits to let it apply). */
+  installUpdate: (assetUrl, exe) => ipcRenderer.invoke("pm:install-update", { assetUrl, exe }),
+  /** Fires shortly after launch if an update is already waiting. */
+  onUpdateAvailable: (cb) => {
+    const handler = (_e, info) => cb(info);
+    ipcRenderer.on("pm:update-available", handler);
+    return () => ipcRenderer.off("pm:update-available", handler);
+  },
 });

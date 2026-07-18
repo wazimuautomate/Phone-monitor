@@ -4,6 +4,12 @@
 // features either fall back to a web API or simply aren't available. Everything
 // here is therefore optional and degrades instead of throwing.
 
+export type UpdateInfo =
+  | { status: "not-configured" }
+  | { status: "up-to-date"; version: string }
+  | { status: "available"; version: string; notes: string; exe: string; assetUrl: string }
+  | { status: "error"; reason: string };
+
 interface DesktopBridge {
   isDesktop: true;
   platform: string;
@@ -17,6 +23,9 @@ interface DesktopBridge {
   setFullScreen(on: boolean): Promise<boolean>;
   isFullScreen(): Promise<boolean>;
   onFullScreenChanged(cb: (on: boolean) => void): () => void;
+  checkForUpdate(): Promise<UpdateInfo>;
+  installUpdate(assetUrl: string, exe: string): Promise<boolean>;
+  onUpdateAvailable(cb: (info: UpdateInfo) => void): () => void;
 }
 
 function bridge(): DesktopBridge | undefined {
@@ -155,4 +164,32 @@ export function onFullScreenChanged(cb: (on: boolean) => void): () => void {
   const handler = () => cb(!!document.fullscreenElement);
   document.addEventListener("fullscreenchange", handler);
   return () => document.removeEventListener("fullscreenchange", handler);
+}
+
+// ---- Updates (desktop only) -------------------------------------------------
+
+export async function checkForUpdate(): Promise<UpdateInfo> {
+  const d = bridge();
+  if (!d) return { status: "not-configured" };
+  try {
+    return await d.checkForUpdate();
+  } catch {
+    return { status: "error", reason: "check failed" };
+  }
+}
+
+export async function installUpdate(assetUrl: string, exe: string): Promise<boolean> {
+  const d = bridge();
+  if (!d) return false;
+  try {
+    return await d.installUpdate(assetUrl, exe);
+  } catch {
+    return false;
+  }
+}
+
+export function onUpdateAvailable(cb: (info: UpdateInfo) => void): () => void {
+  const d = bridge();
+  if (!d) return () => {};
+  return d.onUpdateAvailable(cb);
 }

@@ -366,6 +366,41 @@
 
             <View style="@style/Pm.Divider" />
 
+            <!-- Check for updates -->
+            <LinearLayout
+                android:id="@+id/setUpdateRow"
+                style="@style/Pm.Row">
+
+                <ImageView
+                    style="@style/Pm.RowIcon"
+                    android:src="@drawable/ic_refresh"
+                    app:tint="@color/pm_green" />
+
+                <LinearLayout style="@style/Pm.RowText">
+
+                    <TextView style="@style/Pm.RowTitle" android:text="@string/about_check_updates" />
+
+                    <TextView
+                        android:id="@+id/setUpdateSub"
+                        style="@style/Pm.RowSub"
+                        android:text="@string/update_idle" />
+                </LinearLayout>
+
+                <ProgressBar
+                    android:id="@+id/setUpdateProgress"
+                    android:layout_width="18dp"
+                    android:layout_height="18dp"
+                    android:layout_marginEnd="8dp"
+                    android:visibility="gone" />
+
+                <ImageView
+                    style="@style/Pm.RowChevron"
+                    android:src="@drawable/ic_chevron"
+                    app:tint="@color/pm_muted" />
+            </LinearLayout>
+
+            <View style="@style/Pm.Divider" />
+
             <LinearLayout style="@style/Pm.Row">
 
                 <ImageView

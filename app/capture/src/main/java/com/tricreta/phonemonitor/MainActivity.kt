@@ -556,9 +556,70 @@ class MainActivity : AppCompatActivity() {
         s.setNotifRow.setOnClickListener { onNotifRow() }
         s.setNameRow.setOnClickListener { renamePhone() }
         s.setHowRow.setOnClickListener { binding.bottomNav.selectedItemId = R.id.nav_home }
+        s.setUpdateRow.setOnClickListener {
+            val pending = pendingUpdate
+            if (pending != null) startUpdateDownload(pending) else checkForUpdates()
+        }
 
         // Show the real installed version instead of a hardcoded string.
         s.setVersionValue.text = "v" + BuildConfig.VERSION_NAME
+    }
+
+    // ---- In-app update ----
+
+    private var updateBusy = false
+    private var pendingUpdate: Updater.Update? = null
+
+    private fun checkForUpdates() {
+        if (updateBusy) return
+        val s = binding.pageSettings
+        if (BuildConfig.DEBUG) {
+            s.setUpdateSub.setText(R.string.update_not_configured)
+            return
+        }
+        updateBusy = true
+        pendingUpdate = null
+        s.setUpdateProgress.visibility = View.VISIBLE
+        s.setUpdateSub.setText(R.string.update_checking)
+        Thread {
+            val result = Updater.check()
+            runOnUiThread {
+                updateBusy = false
+                s.setUpdateProgress.visibility = View.GONE
+                when (result) {
+                    is Updater.Result.NotConfigured -> s.setUpdateSub.setText(R.string.update_not_configured)
+                    is Updater.Result.UpToDate -> s.setUpdateSub.setText(R.string.update_uptodate)
+                    is Updater.Result.Failed -> s.setUpdateSub.text = getString(R.string.update_failed, result.reason)
+                    is Updater.Result.Available -> {
+                        pendingUpdate = result.update
+                        s.setUpdateSub.text = getString(R.string.update_available, result.update.versionName)
+                    }
+                }
+            }
+        }.start()
+    }
+
+    private fun startUpdateDownload(update: Updater.Update) {
+        if (updateBusy) return
+        updateBusy = true
+        val s = binding.pageSettings
+        s.setUpdateProgress.visibility = View.VISIBLE
+        s.setUpdateSub.setText(R.string.update_downloading)
+        Thread {
+            val apk = Updater.download(this, update)
+            runOnUiThread {
+                updateBusy = false
+                s.setUpdateProgress.visibility = View.GONE
+                if (apk != null) {
+                    // The system installer is the user's confirmation prompt.
+                    runCatching { startActivity(Updater.installIntent(this, apk)) }
+                        .onFailure { s.setUpdateSub.text = getString(R.string.update_failed, it.message ?: "install") }
+                } else {
+                    pendingUpdate = update // keep it so the user can retry
+                    s.setUpdateSub.text = getString(R.string.update_failed, "download")
+                }
+            }
+        }.start()
     }
 
     private fun currentTheme(): String = prefs.getString("themeMode", App.THEME_SYSTEM) ?: App.THEME_SYSTEM

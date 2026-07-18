@@ -1,7 +1,17 @@
 import { useEffect, useState } from "react";
 import type { ThemeMode } from "../lib/theme";
 import { patchAlerts, patchSettings, TILE_SIZES, useSettings } from "../lib/settings";
-import { defaultCapturePaths, isDesktop, openPath, pickFolder, setKeepAwake } from "../lib/desktop";
+import {
+  appVersion,
+  checkForUpdate,
+  defaultCapturePaths,
+  installUpdate,
+  isDesktop,
+  openPath,
+  pickFolder,
+  setKeepAwake,
+  type UpdateInfo,
+} from "../lib/desktop";
 import {
   IconBell,
   IconCamera,
@@ -35,9 +45,28 @@ export function SettingsPage({ themeMode, onTheme, demoCount, onAddDemo, onRemov
   const [defaults, setDefaults] = useState({ screenshots: "", recordings: "" });
   const desktop = isDesktop();
 
+  const [version, setVersion] = useState("—");
+  const [update, setUpdate] = useState<UpdateInfo | null>(null);
+  const [checking, setChecking] = useState(false);
+  const [installing, setInstalling] = useState(false);
+
   useEffect(() => {
     void defaultCapturePaths().then(setDefaults);
+    void appVersion().then(setVersion);
   }, []);
+
+  const runUpdateCheck = async () => {
+    setChecking(true);
+    setUpdate(await checkForUpdate());
+    setChecking(false);
+  };
+
+  const runInstall = async () => {
+    if (update?.status !== "available") return;
+    setInstalling(true);
+    // The app quits to run the installer, so this promise may not resolve.
+    await installUpdate(update.assetUrl, update.exe);
+  };
 
   const choose = async (which: "screenshotDir" | "recordingDir") => {
     const dir = await pickFolder(s[which] || undefined);
@@ -291,6 +320,44 @@ export function SettingsPage({ themeMode, onTheme, demoCount, onAddDemo, onRemov
           </div>
         </div>
       </div>
+
+      {/* About & updates (desktop app only) */}
+      {desktop && (
+        <div className="section">
+          <h2 className="section-title">About &amp; updates</h2>
+          <div className="panel">
+            <div className="row">
+              <div className="row-main">
+                <div className="row-title">Version</div>
+                <div className="row-sub">
+                  Phone Monitor v{version}
+                  {update?.status === "up-to-date" && " — you're on the latest version."}
+                  {update?.status === "not-configured" && " — updates aren't enabled for this build."}
+                  {update?.status === "error" && ` — couldn't check: ${update.reason}`}
+                </div>
+              </div>
+              <button className="btn" onClick={runUpdateCheck} disabled={checking || installing}>
+                {checking ? "Checking…" : "Check for updates"}
+              </button>
+            </div>
+
+            {update?.status === "available" && (
+              <div className="row">
+                <div className="row-main">
+                  <div className="row-title">Update available — v{update.version}</div>
+                  <div className="row-sub">
+                    Installs over your current version without uninstalling or losing settings. The
+                    app restarts to finish.
+                  </div>
+                </div>
+                <button className="btn primary" onClick={runInstall} disabled={installing}>
+                  {installing ? "Downloading…" : "Download & install"}
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

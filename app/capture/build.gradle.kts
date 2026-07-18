@@ -33,6 +33,13 @@ android {
         versionName = "1.0.0"
         // The launcher label; debug overrides it so both apps can coexist.
         manifestPlaceholders["appLabel"] = "@string/app_name"
+
+        // In-app updater: which repo release to read, and a read-only token to
+        // read it (the repo is private). The token is injected from the
+        // RELEASES_READ_TOKEN CI secret at build time — empty on local builds,
+        // which just disables the update check. Never hardcode it in source.
+        buildConfigField("String", "UPDATE_REPO", "\"wazimuautomate/Phone-monitor\"")
+        buildConfigField("String", "RELEASES_TOKEN", "\"${System.getenv("RELEASES_READ_TOKEN") ?: ""}\"")
     }
 
     signingConfigs {
